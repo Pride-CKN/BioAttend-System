@@ -1,0 +1,24 @@
+# Environment secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies
+**/vendor/
+**/node_modules/
+
+# Build output
+**/dist/
+**/build/
+
+# IDE
+.vscode/
+.idea/
+
+# Cache and temporary files
+**/.phpunit.cache/
+**/*.log
+
+# OS files
+.DS_Store
+Thumbs.db
