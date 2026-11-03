@@ -96,7 +96,7 @@ git push -u origin feature/nama-fitur
 
 abis itu buka GitHub, bikin **Pull Request ke `main`**, terus tunggu direview sebelum di-merge
 
-## Aturan Biar Coding gak Berantakan wkwkwkwkw 😂
+## Aturan Biar Coding gak Keroyokan wkwkwkwkw
 
 1. Jangan coding atau push langsung ke `main`
 2. Masing-masing pake branch sendiri
