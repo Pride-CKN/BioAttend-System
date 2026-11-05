@@ -26,7 +26,7 @@ Project aplikasi absensi karyawan berbasis fingerprint
 
 - [x] Laravel 13.39.0 sudah dibuat
 - [x] Port backend 9271 sudah diatur
-- [x] PostgreSQL 18.1 on (On Progres)
+- [x] PostgreSQL 18.1 (On Progres)
 - [x] API Ready, tapi sementara pake API Publick dulu aja buat tes pake data dummy. masih harus konfig lagi
 - [x] `composer.json` dan `composer.lock` sudah dimasukkan
 - [ ] Konfigurasi PostgreSQL ke Laravel
