@@ -6,11 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Shift, penugasan jadwal, hari libur, dan konfigurasi jam kerja 3 tingkat
-     * (shifts, schedules, holidays, work_schedule_configs, schedule_change_histories)
-     * PRD 19.2 + BR-13 + Bagian 8.6.
-     */
+    /*Shift, penugasan jadwal, hari libur, dan konfigurasi jam kerja 3 tingkat
+      (shifts, schedules, holidays, work_schedule_configs, schedule_change_histories) */
     public function up(): void
     {
         Schema::create('shifts', function (Blueprint $table) {
@@ -50,7 +47,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Konfigurasi jam kerja berjenjang: COMPANY / DIVISION / EMPLOYEE (BR-13)
+        // Konfigurasi jam kerja berjenjang: COMPANY / DIVISION / EMPLOYEE 
         Schema::create('work_schedule_configs', function (Blueprint $table) {
             $table->id();
             $table->string('scope_type', 20);       // COMPANY / DIVISION / EMPLOYEE
@@ -68,7 +65,7 @@ return new class extends Migration
             $table->index(['scope_type', 'is_active'], 'wsc_scope_active_idx');
         });
 
-        // Riwayat perubahan konfigurasi jam kerja (append-only, Bagian 8.6.4)
+        // Riwayat perubahan konfigurasi jam kerja (append-only)
         Schema::create('schedule_change_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('work_schedule_config_id')->nullable()->constrained('work_schedule_configs')->nullOnDelete();
