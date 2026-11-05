@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/*
-  Arsitektur sinkronisasi perangkat Semua tabel baru,
+/*Arsitektur sinkronisasi perangkat Semua tabel baru,
  tidak ada penghapusan atau perubahan data existing.
  */
 return new class extends Migration
