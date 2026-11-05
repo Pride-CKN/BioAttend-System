@@ -122,4 +122,9 @@ public function primaryRole(): ?string
             'mfa_enabled' => 'boolean',
         ];
     }
+
+    public function employee(): BelongsTo
+    {
+        return $this->BelongsTo(Employee::class);
+    }
 }
