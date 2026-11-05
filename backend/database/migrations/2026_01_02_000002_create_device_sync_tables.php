@@ -4,9 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Arsitektur sinkronisasi perangkat (PRD Bagian 14 / master prompt Bagian 6).
- * Semua tabel baru; tidak ada penghapusan atau perubahan data existing.
+/*Arsitektur sinkronisasi perangkat Semua tabel baru,
+ tidak ada penghapusan atau perubahan data existing.
  */
 return new class extends Migration
 {
@@ -25,7 +24,7 @@ return new class extends Migration
             $table->unique('device_id', 'device_checkpoints_dev_unique');
         });
 
-        // Riwayat setiap proses sinkronisasi (PRD 6.L).
+        // Riwayat setiap proses sinkronisasi
         Schema::create('device_sync_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('device_id')->constrained('devices')->cascadeOnDelete();
@@ -91,7 +90,7 @@ return new class extends Migration
             $table->index(['employee_id', 'event_date'], 'att_warn_event_emp_date_idx');
         });
 
-        // Mapping manual log unmatched (PRD 7.3).
+        // Mapping manual log unmatched
         Schema::create('attendance_log_mapping_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('attendance_log_id')->constrained('attendance_logs')->cascadeOnDelete();

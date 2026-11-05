@@ -6,10 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Pengaturan, notifikasi, laporan, dan audit log (PRD 19.2, 20.5).
-     * audit_logs bersifat append-only — hanya ada created_at.
-     */
+    /*
+      Pengaturan, notifikasi, laporan, dan audit log
+      audit_logs bersifat append-only — hanya ada created_at */
     public function up(): void
     {
         Schema::create('settings', function (Blueprint $table) {
@@ -52,7 +51,7 @@ return new class extends Migration
             $table->index(['type', 'status']);
         });
 
-        // Append-only (PRD 19.4) — tidak ada updated_at
+        // Append-only, tidak ada updated_at
         Schema::create('audit_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();

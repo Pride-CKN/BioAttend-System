@@ -6,14 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Deduction & PPh (PRD 19.2, Bagian 11).
-     *
-     * ATURAN ALPHA (permintaan eksplisit pengguna):
-     *   - alpha (tanpa keterangan) dikenakan potongan 4% LANGSUNG sejak kejadian pertama.
-     *   - alpha TIDAK mendapat jatah toleransi (berbeda dengan PRD 11.3 murni).
-     *   Kolom alpha_events / alpha_rate / alpha_percentage menyimpan jejaknya.
-     */
+    /*Deduction & PPh
+     
+      ATURAN ALPHA (permintaan eksplisit pengguna):
+        - alpha (tanpa keterangan) dikenakan potongan 4% LANGSUNG sejak kejadian pertama.
+        - alpha TIDAK mendapat jatah toleransi
+          Kolom alpha_events / alpha_rate / alpha_percentage menyimpan jejaknya*/
     public function up(): void
     {
         Schema::create('deduction_records', function (Blueprint $table) {

@@ -4,14 +4,14 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Hardening absensi & deduction — MIGRASI ADDITIVE (tidak menghapus data).
- *
- * Menambahkan:
- *  - identitas log perangkat + fingerprint idempotency pada attendance_logs
- *  - data pendukung EARLY_DEPARTURE pada attendance_records
- *  - field audit pembulatan nominal akhir pada deduction_records/histories
- *  - flag sinkronisasi & kesehatan pada devices
+/*
+  Hardening absensi & deduction — MIGRASI ADDITIVE (tidak menghapus data).
+ 
+  Menambahkan:
+   - identitas log perangkat + fingerprint idempotency pada attendance_logs
+   - data pendukung EARLY_DEPARTURE pada attendance_records
+   - field audit pembulatan nominal akhir pada deduction_records/histories
+   - flag sinkronisasi & kesehatan pada devices
  */
 return new class extends Migration
 {
@@ -47,7 +47,7 @@ return new class extends Migration
         Schema::table('deduction_records', function (Blueprint $table) {
             $table->decimal('raw_final_amount', 15, 2)->default(0)->after('deduction_amount');
             $table->decimal('rounding_adjustment', 15, 2)->default(0)->after('raw_final_amount');
-            // Jumlah warning Pulang Cepat: DILAPORKAN, tidak pernah masuk percentage.
+            // Jumlah warning Pulang Cepat: DILAPORKAN, tidak pernah masuk percentage
             $table->unsignedSmallInteger('early_departure_events')->default(0)->after('alpha_events');
         });
 
@@ -64,7 +64,7 @@ return new class extends Migration
             $table->text('last_error_message')->nullable()->after('last_error_code');
             $table->string('firmware', 100)->nullable()->after('model');
             $table->unsignedBigInteger('last_log_count')->default(0)->after('firmware');
-            // Offset staggered scheduling (detik) agar perangkat tidak sinkron bareng.
+            // Offset staggered scheduling (detik) agar perangkat tidak sinkron bareng
             $table->unsignedSmallInteger('sync_offset_seconds')->default(0)->after('last_log_count');
             $table->unsignedSmallInteger('sync_interval_minutes')->default(15)->after('sync_offset_seconds');
         });

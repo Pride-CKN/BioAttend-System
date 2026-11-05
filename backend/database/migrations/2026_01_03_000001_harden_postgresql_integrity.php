@@ -3,31 +3,24 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-/**
- * PostgreSQL production hardening.
- *
- * This migration is intentionally additive: it adds constraints, indexes and
- * database-level immutability protections without dropping application data.
- * SQLite remains available for isolated automated tests; production schema
- * guarantees must be verified against PostgreSQL.
- */
+/*Hardening PostgreSQL buat kebutuhan production. Migrasi ini sifatnya cuma nambahin aturan,
+constraint, index, dan proteksi data supaya lebih aman, tanpa menghapus data yang sudah ada*/
 return new class extends Migration
 {
     public function up(): void
     {
         if (DB::getDriverName() !== 'pgsql') {
-            // The production database is PostgreSQL. SQLite is used only when
-            // explicitly selected by the test environment (phpunit.xml).
+            // Database production pakai PostgreSQL. SQLite cuma dipakai 
+            //kalau memang dipilih khusus untuk environment testing di phpunit.xml
             return;
         }
 
         $this->assertNoCaseInsensitiveEmailDuplicates();
         $this->assertNoDuplicateSessionTokenHashes();
         $this->assertValidWorkScheduleScopes();
-
-        // Complete the relational links that were previously represented only
-        // as unsigned integer columns. Existing invalid references stop the
-        // migration with an actionable message instead of being discarded.
+        // Melengkapi relasi antar tabel yang sebelumnya cuma berupa kolom integer
+        // Kalau ada referensi data yang tidak valid, migrasi akan dihentikan
+        // dengan pesan yang jelas, bukan langsung menghapus datanya
         $foreignKeys = [
             ['departments', 'head_id', 'employees', 'department_head_employee_fk'],
             ['divisions', 'department_id', 'departments', 'division_department_fk'],
@@ -435,9 +428,10 @@ return new class extends Migration
             return;
         }
 
-        // This migration deliberately hardens production data integrity. A
-        // rollback that restores cascading deletes or mutable audit records is
-        // unsafe. Reversal must be a separately reviewed migration.
+        // Migrasi ini memang dibuat untuk memperkuat keamanan dan integritas data production
+        // Rollback yang mengaktifkan kembali penghapusan berantai atau mengizinkan
+        // perubahan pada data audit berisiko. Jadi, kalau mau dibalik, perlu migrasi
+        // terpisah yang diperiksa terlebih dahulu
         throw new RuntimeException(
             'Migration database hardening tidak dapat di-rollback otomatis karena akan melemahkan integritas dan retensi data. '
             .'Buat migration reversal khusus setelah review dan backup.'
