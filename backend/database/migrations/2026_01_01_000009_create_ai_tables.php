@@ -6,9 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * AI HR Agent — percakapan, pesan, dan log pemanggilan tool (PRD 19.2, Bagian 15).
-     * Read-only terhadap data HR (PRD 15.3).
+    /*
+      AI HR Agent — percakapan, pesan, dan log pemanggilan tool
+      Read-only terhadap data HR
      */
     public function up(): void
     {

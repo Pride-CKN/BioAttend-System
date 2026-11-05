@@ -34,7 +34,7 @@ return new class extends Migration
             // Relasi lama ke divisions (sekarang units).
             $table->renameColumn('division_id', 'unit_id');
 
-            // Relasi lama ke departments (sekarang divisions).
+            // Relasi lama ke departments (sekarang divisions)
             $table->renameColumn('department_id', 'division_id');
         });
 

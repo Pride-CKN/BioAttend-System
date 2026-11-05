@@ -6,10 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Pengajuan: leave_types, leave_requests, leave_balances,
-     * permission_requests, overtime_requests (PRD 19.2, Bagian 12 & 13).
-     * Seluruh pengajuan mengikuti persetujuan berjenjang KADIV -> HRD (BR-08).
+    /*
+      Pengajuan: leave_types, leave_requests, leave_balances,
+      permission_requests, overtime_requests
+      Seluruh pengajuan mengikuti persetujuan berjenjang KADIV -> HRD
      */
     public function up(): void
     {

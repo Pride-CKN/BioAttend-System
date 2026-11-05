@@ -6,10 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Perangkat absensi & log integrasi (PRD 19.2, Bagian 14).
-     * commkey disimpan terenkripsi (PRD 20.4).
-     */
+    /*Perangkat absensi & log integrasi commkey disimpan terenkripsi*/
     public function up(): void
     {
         Schema::create('devices', function (Blueprint $table) {

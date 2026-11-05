@@ -4,10 +4,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Pendukung autentikasi aman & antrian:
- *  - password_histories: hash saja, tidak pernah menyimpan plaintext
- *  - jobs / failed_jobs / cache: fallback saat Redis belum tersedia
+/*
+  Pendukung autentikasi aman & antrian:
+   - password_histories: hash saja, tidak pernah menyimpan plaintext
+   - jobs / failed_jobs / cache: fallback saat Redis belum tersedia
  */
 return new class extends Migration
 {

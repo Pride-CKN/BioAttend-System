@@ -4,14 +4,14 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Hardening absensi & deduction — MIGRASI ADDITIVE (tidak menghapus data).
- *
- * Menambahkan:
- *  - identitas log perangkat + fingerprint idempotency pada attendance_logs
- *  - data pendukung EARLY_DEPARTURE pada attendance_records
- *  - field audit pembulatan nominal akhir pada deduction_records/histories
- *  - flag sinkronisasi & kesehatan pada devices
+/*
+  Hardening absensi & deduction — MIGRASI ADDITIVE (tidak menghapus data).
+
+  Menambahkan:
+   - identitas log perangkat + fingerprint idempotency pada attendance_logs
+   - data pendukung EARLY_DEPARTURE pada attendance_records
+   - field audit pembulatan nominal akhir pada deduction_records/histories
+   - flag sinkronisasi & kesehatan pada devices
  */
 return new class extends Migration
 {
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('device_user_identifier', 100)->nullable()->after('employee_id');
             $table->string('device_log_id', 100)->nullable()->after('device_user_identifier');
             // Fingerprint deterministik untuk idempotency bila perangkat tidak
-            // menyediakan device_log_id. NULL diperbolehkan (baris lama).
+            // menyediakan device_log_id. NULL diperbolehkan (baris lama)
             $table->string('fingerprint', 64)->nullable()->after('device_log_id');
             $table->string('sync_batch_id', 64)->nullable()->after('fingerprint');
 
