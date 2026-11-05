@@ -12,17 +12,17 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/**
- * Modul deduction
- *
- * ATURAN ALPHA: tanpa keterangan dikenakan 4% LANGSUNG sejak kejadian
- * pertama dan tidak mendapat jatah toleransi (liat DeductionService).
+/*
+  Modul deduction
+
+  ATURAN ALPHA: tanpa keterangan dikenakan 4% LANGSUNG sejak kejadian
+  pertama dan tidak mendapat jatah toleransi (liat DeductionService)
  */
 class DeductionController extends Controller
 {
     public function __construct(protected DeductionService $deductions) {}
 
-    /** GET /deductions — daftar perhitungan (HRD semua, KADIV divisinya). */
+    /* GET /deductions — daftar perhitungan (HRD semua, KADIV divisinya) */
     public function index(Request $request): JsonResponse
     {
         $employeeIds = $this->employeesQuery()->pluck('id');
@@ -36,7 +36,7 @@ class DeductionController extends Controller
         return $this->paginated($query->orderByDesc('period')->orderBy('employee_id')->paginate($request->integer('per_page', 15)));
     }
 
-    /** GET /deductions/my — data deduction sendiri (Employee, read-only). */
+    /* GET /deductions/my — data deduction sendiri (Employee, read-only) */
     public function my(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -58,21 +58,23 @@ class DeductionController extends Controller
         return $this->success($this->transform($record));
     }
 
-    /** POST /deductions/calculate — hitung deduction periode (HRD). */
+    /* POST /deductions/calculate — hitung deduction periode (HRD) */
     public function calculate(Request $request): JsonResponse
     {
         $data = $request->validate([
             'period' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+            'office_id' => 'nullable|integer|exists:offices,id',
             'division_id' => 'nullable|integer|exists:divisions,id',
-            'department_id' => 'nullable|integer|exists:departments,id',
+            'unit_id' => 'nullable|integer|exists:units,id',
             'employee_ids' => 'nullable|array',
             'employee_ids.*' => 'integer|exists:employees,id',
             'recalculate' => 'boolean',
         ]);
 
-        $result = $this->deductions->calculatePeriod($data['period'], [
+            $result = $this->deductions->calculatePeriod($data['period'], [
+            'office_id' => $data['office_id'] ?? null,
             'division_id' => $data['division_id'] ?? null,
-            'department_id' => $data['department_id'] ?? null,
+            'unit_id' => $data['unit_id'] ?? null,
             'employee_ids' => $data['employee_ids'] ?? null,
             'recalculate' => $data['recalculate'] ?? false,
             'actor_user_id' => $request->user()->id,
@@ -83,7 +85,7 @@ class DeductionController extends Controller
         return $this->accepted($result, 'Perhitungan deduction selesai');
     }
 
-    /** POST /deductions/{id}/confirm — konfirmasi (HRD), final setelah cut-off. */
+    /* POST /deductions/{id}/confirm — konfirmasi (HRD), final setelah cut-off */
     public function confirm(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -98,8 +100,8 @@ class DeductionController extends Controller
             );
         } catch (RuntimeException $e) {
             // ModelNotFoundException juga merupakan RuntimeException. Jangan
-            // menelan 404 menjadi 409; hanya konflik state (code 409) yang
-            // dikonversi, lainnya diteruskan ke handler terpusat.
+            // menelan 404 menjadi 409, hanya konflik state (code 409) yang
+            // dikonversi, lainnya diteruskan ke handler terpusat
             if ($e->getCode() !== 409
                 || $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
                 throw $e;
@@ -113,7 +115,7 @@ class DeductionController extends Controller
         return $this->success($this->transform($record), 'Perhitungan berhasil dikonfirmasi');
     }
 
-    /** POST /deductions/{id}/nominal — input / ubah nominal dasar (HRD). */
+    /* POST /deductions/{id}/nominal — input / ubah nominal dasar (HRD) */
     public function nominal(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -142,7 +144,7 @@ class DeductionController extends Controller
         return $this->success($this->transform($record), 'Nominal dasar berhasil disimpan');
     }
 
-    /** GET /deductions/{id}/histories — riwayat perhitungan. */
+    /* GET /deductions/{id}/histories — riwayat perhitungan */
     public function histories(int $id): JsonResponse
     {
         $record = DeductionRecord::findOrFail($id);
@@ -152,7 +154,7 @@ class DeductionController extends Controller
         return $this->success($record->histories()->orderByDesc('created_at')->get());
     }
 
-    /** GET /deductions/preview — simulasi hitung tanpa menyimpan. */
+    /* GET /deductions/preview — simulasi hitung tanpa menyimpan */
     public function preview(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -168,7 +170,7 @@ class DeductionController extends Controller
         );
     }
 
-    /** GET /deductions/export — ekspor CSV (HRD / KADIV divisi). */
+    /* GET /deductions/export — ekspor CSV (HRD / KADIV divisi) */
     public function export(Request $request): StreamedResponse|JsonResponse
     {
         $data = $request->validate([
@@ -227,7 +229,7 @@ class DeductionController extends Controller
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
-    /** Format ringkas untuk ditampilkan; menyertakan rincian alpha. */
+    /* Format ringkas untuk ditampilkan; menyertakan rincian alpha */
     protected function transform(DeductionRecord $record): array
     {
         $record->loadMissing(['employee:id,nip,full_name', 'employee.division:id,name', 'events']);
