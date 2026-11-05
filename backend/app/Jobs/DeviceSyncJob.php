@@ -5,7 +5,7 @@ namespace App\Jobs;
 use App\Models\Device;
 use App\Models\DeviceSyncHistory;
 use App\Services\Device\DeviceSyncService;
-use App\Services\ZKTeco\Exceptions\DeviceConnectionException;
+use App\Services\ZKTeco\Exceptions\ZktecoConnectionException;
 use App\Services\ZKTeco\Exceptions\SdkUnavailableException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -66,10 +66,10 @@ class DeviceSyncJob implements ShouldQueue, ShouldBeUnique
                 'attempt_count' => $this->attempts(),
                 'correlation_id' => $this->correlationId ?? (string) Str::uuid(),
             ]);
-        } catch (SdkUnavailableException $e) {
+        } catch (ZktecoConnectionException $e) {
             // Dependency eksternal belum tersedia — tidak ada gunanya retry.
             $this->fail($e);
-        } catch (DeviceConnectionException $e) {
+        } catch (ZktecoConnectionException $e) {
             if (! $e->isTemporary()) {
                 $this->fail($e);
             }
@@ -87,11 +87,11 @@ class DeviceSyncJob implements ShouldQueue, ShouldBeUnique
             ->first();
 
         $history?->update([
-            'status' => $e instanceof DeviceConnectionException && $e->errorCode === 'TIMEOUT'
+            'status' => $e instanceof ZktecoConnectionException && $e->errorCode === 'TIMEOUT'
                 ? DeviceSyncHistory::STATUS_TIMEOUT
                 : DeviceSyncHistory::STATUS_FAILED,
             'completed_at' => now(),
-            'error_code' => $e instanceof SdkUnavailableException ? 'SDK_UNAVAILABLE' : 'JOB_FAILED',
+            'error_code' => $e instanceof ZktecoConnectionException ? 'SDK_UNAVAILABLE' : 'JOB_FAILED',
             'error_summary' => $e->getMessage(),
         ]);
 

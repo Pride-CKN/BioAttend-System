@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DeviceStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Device extends Model
 {
@@ -20,6 +21,8 @@ class Device extends Model
         'pull_interval_minutes',
         'last_sync_at',
         'last_error',
+        'last_error_code',
+        'last_successful_connection_at',
         'consecutive_failures',
     ];
 
@@ -41,12 +44,18 @@ class Device extends Model
             'pull_interval_minutes' => 'integer',
             'consecutive_failures'  => 'integer',
             'last_sync_at'          => 'datetime',
+            'last_successful_connection_at' => 'datetime',
         ];
     }
 
     public function attendanceLogs(): HasMany
     {
         return $this->hasMany(AttendanceLog::class);
+    }
+
+    public function checkpoint(): HasOne
+    {
+        return $this->hasOne(DeviceCheckpoint::class);
     }
 
     /**
@@ -68,18 +77,21 @@ class Device extends Model
         $this->forceFill([
             'status'               => DeviceStatus::Online,
             'last_sync_at'         => now(),
+            'last_successful_connection_at' => now(),
             'last_error'           => null,
+            'last_error_code'      => null,
             'consecutive_failures' => 0,
         ])->save();
     }
 
-    public function markFailed(string $message, int $maxRetries = 3): void
+    public function markFailed(string $message, int $maxRetries = 3, ?string $errorCode = null): void
     {
         $failures = $this->consecutive_failures + 1;
 
         $this->forceFill([
             'consecutive_failures' => $failures,
             'last_error'           => $message,
+            'last_error_code'      => $errorCode,
             'status'               => $failures >= $maxRetries
                 ? DeviceStatus::Offline
                 : $this->status,
