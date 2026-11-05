@@ -16,6 +16,7 @@ class Device extends Model
         'commkey_encrypted',
         'location',
         'status',
+        'is_active',
         'pull_interval_minutes',
         'last_sync_at',
         'last_error',
@@ -29,12 +30,14 @@ class Device extends Model
         'commkey_encrypted',
     ];
 
+    // Tambah Is Active(Gk ada di PRD Desain Database, controller minta is active)
     protected function casts(): array
     {
         return [
             'port'                  => 'integer',
             'commkey_encrypted'     => 'encrypted',
             'status'                => DeviceStatus::class,
+            'is_active'             => 'boolean',
             'pull_interval_minutes' => 'integer',
             'consecutive_failures'  => 'integer',
             'last_sync_at'          => 'datetime',
