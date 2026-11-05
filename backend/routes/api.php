@@ -15,13 +15,13 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes 
+| API Routes
 |--------------------------------------------------------------------------
 | Semua endpoint berada di bawah prefix /api/v1 dan memakai format respons
 | seragam: { success, message, data, meta } atau { success, message, errors }.
 |
 | Middleware:
-|   auth:sanctum -> butuh Bearer token 
+|   auth:sanctum -> butuh Bearer token
 |   role:HRD,KADIV -> pembatasan role
 | Scope data: HRD = global, KADIV = divisinya, EMPLOYEE = dirinya sendiri.
 */
@@ -78,7 +78,7 @@ Route::prefix('v1')->group(function () {
         });
 
         /*Master data (HRD)*/
-        // departments, divisions, positions, shifts, holidays, leave-types, devices
+        // offices, divisions, units, positions, shifts, holidays, leave-types, devices
         Route::prefix('master')->middleware('role:HRD')->group(function () {
             Route::get('{resource}', [MasterDataController::class, 'index']);
             Route::post('{resource}', [MasterDataController::class, 'store']);
@@ -99,7 +99,7 @@ Route::prefix('v1')->group(function () {
             Route::put('{id}', [EmployeeController::class, 'update'])
                 ->middleware('role:HRD');
             Route::delete('{id}', [EmployeeController::class, 'destroy'])
-                ->middleware('role:HRD');   
+                ->middleware('role:HRD');
         });
 
         /* Jadwal kerja */
@@ -137,11 +137,11 @@ Route::prefix('v1')->group(function () {
             Route::get('recap', [AttendanceController::class, 'recap'])
                 ->middleware('role:HRD,KADIV');
             Route::get('raw-logs', [AttendanceController::class, 'rawLogs'])
-                ->middleware('role:HRD');                 // append-only
+                ->middleware('role:HRD');
             Route::post('reprocess', [AttendanceController::class, 'reprocess'])
                 ->middleware('role:HRD');
             Route::post('ingest', [AttendanceController::class, 'ingest'])
-                ->middleware('role:HRD');                 // dari mesin fingerprint
+                ->middleware('role:HRD');
             Route::post('process', [AttendanceController::class, 'process'])
                 ->middleware('role:HRD');
             Route::post('verify', [AttendanceController::class, 'verify'])
@@ -240,6 +240,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('roles', [SystemController::class, 'roles']);
             Route::put('roles/{id}/permissions', [SystemController::class, 'updateRolePermissions']);
+            Route::patch('users/{id}/role', [SystemController::class, 'updateUserRole']);
             Route::get('permissions', [SystemController::class, 'permissions']);
 
             Route::get('settings', [SystemController::class, 'settings']);

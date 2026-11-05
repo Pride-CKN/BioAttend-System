@@ -9,25 +9,38 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Employee extends Model
 {
-    /** BR-06: karyawan tidak dihapus fisik, cukup dinonaktifkan. */
     public const STATUS_ACTIVE = 'ACTIVE';
     public const STATUS_INACTIVE = 'INACTIVE';
     public const STATUS_RESIGNED = 'RESIGNED';
 
     protected $fillable = [
-        'nip', 'device_user_identifier', 'full_name', 'email', 'phone', 'gender', 'join_date',
-        'employment_status', 'department_id', 'division_id', 'position_id',
-        'manager_id', 'photo_path',
+        'nip',
+        'device_user_identifier',
+        'employee_code',
+        'office_id',
+        'full_name',
+        'email',
+        'phone',
+        'gender',
+        'join_date',
+        'employment_status',
+        'division_id',
+        'unit_id',
+        'position_id',
+        'manager_id',
+        'photo_path',
     ];
 
     protected function casts(): array
     {
-        return ['join_date' => 'date'];
+        return [
+            'join_date' => 'date',
+        ];
     }
 
-    public function department(): BelongsTo
+    public function office(): BelongsTo
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsTo(Office::class);
     }
 
     public function division(): BelongsTo
@@ -35,15 +48,35 @@ class Employee extends Model
         return $this->belongsTo(Division::class);
     }
 
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
+    }
+
     public function position(): BelongsTo
     {
         return $this->belongsTo(Position::class);
+    }
+
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'manager_id');
+    }
+
+    public function subordinates(): HasMany
+    {
+        return $this->hasMany(Employee::class, 'manager_id');
     }
 
     public function user(): HasOne
     {
         return $this->hasOne(User::class);
     }
+
+    public function employeeCodeHistories(): HasMany
+{
+    return $this->hasMany(EmployeeCodeHistory::class);
+}
 
     public function attendanceRecords(): HasMany
     {

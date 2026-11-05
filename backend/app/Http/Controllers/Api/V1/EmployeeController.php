@@ -15,131 +15,318 @@ class EmployeeController extends Controller
 {
     public function __construct(protected DeviceEmployeePushService $devicePushes) {}
 
-    /** GET /employees — HRD seluruhnya, KADIV hanya divisinya */
-    public function index(Request $request): JsonResponse
-    {
-        $query = $this->employeesQuery()
-            ->with(['department', 'division', 'position']);
+    /* GET /employees — HRD seluruhnya, KADIV hanya divisinya */
 
-        if ($q = $request->query('q')) {
-            $query->where(fn ($sub) => $sub
-                ->where('full_name', 'ilike', "%{$q}%")
-                ->orWhere('nip', 'ilike', "%{$q}%")
-                ->orWhere('email', 'ilike', "%{$q}%")
+public function index(Request $request): JsonResponse
+{
+    $query = $this->employeesQuery()
+        ->with(['office', 'division', 'unit', 'position']);
+
+    if ($q = $request->query('q')) {
+        $query->where(fn ($sub) => $sub
+            ->where('full_name', 'ilike', "%{$q}%")
+            ->orWhere('nip', 'ilike', "%{$q}%")
+            ->orWhere('employee_code', 'ilike', "%{$q}%")
+            ->orWhere('email', 'ilike', "%{$q}%")
+        );
+    }
+
+    if ($request->filled('office_id')) {
+        $query->where('office_id', $request->query('office_id'));
+    }
+
+    if ($request->filled('division_id')) {
+        $query->where('division_id', $request->query('division_id'));
+    }
+
+    if ($request->filled('unit_id')) {
+        $query->where('unit_id', $request->query('unit_id'));
+    }
+
+    if ($request->filled('employment_status')) {
+        $query->where(
+            'employment_status',
+            $request->query('employment_status')
+        );
+    }
+
+    return $this->paginated(
+        $query->orderBy('full_name')
+            ->paginate($request->integer('per_page', 15))
+    );
+}
+
+
+
+public function store(Request $request): JsonResponse
+{
+    $data = $request->validate([
+        'nip' => ['required', 'string', 'max:30', 'unique:employees,nip'],
+        'full_name' => ['required', 'string', 'max:255'],
+        'email' => ['nullable', 'email', 'max:255'],
+        'phone' => ['nullable', 'string', 'max:30'],
+        'gender' => ['nullable', 'in:MALE,FEMALE'],
+        'join_date' => ['nullable', 'date'],
+        'employment_status' => ['sometimes', 'required', 'in:ACTIVE,INACTIVE,RESIGNED'],
+
+        'office_id' => ['required', 'integer', 'exists:offices,id'],
+        'division_id' => ['required', 'integer', 'exists:divisions,id'],
+        'unit_id' => ['nullable', 'integer', 'exists:units,id'],
+
+        'position_id' => ['nullable', 'integer', 'exists:positions,id'],
+        'manager_id' => ['nullable', 'integer', 'exists:employees,id'],
+
+        'effective_from' => ['nullable', 'date'],
+        'reason' => ['nullable', 'string', 'max:500'],
+    ]);
+
+    $employee = DB::transaction(function () use ($data): Employee {
+        $employee = Employee::query()->create([
+            'nip' => $data['nip'],
+            'full_name' => $data['full_name'],
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'gender' => $data['gender'] ?? null,
+            'join_date' => $data['join_date'] ?? null,
+            'employment_status' => $data['employment_status'] ?? Employee::STATUS_ACTIVE,
+            'position_id' => $data['position_id'] ?? null,
+            'manager_id' => $data['manager_id'] ?? null,
+        ]);
+
+        // Employee ID dan histori dibuat melalui service resmi.
+        return app(\App\Services\EmployeeCodeGeneratorService::class)
+            ->assignOrChange(
+                employee: $employee,
+                officeId: (int) $data['office_id'],
+                divisionId: (int) $data['division_id'],
+                unitId: isset($data['unit_id'])
+                    ? (int) $data['unit_id']
+                    : null,
+                reason: $data['reason'] ?? 'Pembuatan data karyawan',
+                createdBy: auth()->id(),
+                effectiveFrom: $data['effective_from'] ?? now()->toDateString(),
+            );
+    }, 3);
+
+    AuditService::created('EMPLOYEE', $employee, $request);
+
+    if ($employee->isActive()) {
+        $this->devicePushes->queueFor($employee, 'UPSERT');
+    }
+
+    return $this->created(
+        $employee->load(['office', 'division', 'unit', 'position']),
+        'Karyawan berhasil ditambahkan'
+    );
+}
+
+
+
+public function show(int $id): JsonResponse
+{
+    $employee = Employee::query()
+        ->with([
+            'office',
+            'division',
+            'unit',
+            'position',
+            'user.roles',
+            'employeeCodeHistories.office',
+            'employeeCodeHistories.division',
+            'employeeCodeHistories.unit',
+        ])
+        ->findOrFail($id);
+
+    $this->assertCanAccessEmployee($employee->id);
+
+    return $this->success($employee);
+}
+
+
+
+public function update(Request $request, int $id): JsonResponse
+{
+    $employee = Employee::query()->findOrFail($id);
+
+    $data = $request->validate([
+        'nip' => ['sometimes', 'required', 'string', 'max:30', 'unique:employees,nip,' . $id],
+        'full_name' => ['sometimes', 'required', 'string', 'max:255'],
+        'email' => ['sometimes', 'nullable', 'email', 'max:255'],
+        'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+        'gender' => ['sometimes', 'nullable', 'in:MALE,FEMALE'],
+        'join_date' => ['sometimes', 'nullable', 'date'],
+        'employment_status' => ['sometimes', 'in:ACTIVE,INACTIVE,RESIGNED'],
+
+        // Jika mengubah penempatan, ketiga kolom ini wajib dikirim.
+        'office_id' => ['sometimes', 'required_with:division_id,unit_id', 'integer', 'exists:offices,id'],
+        'division_id' => ['sometimes', 'required_with:office_id,unit_id', 'integer', 'exists:divisions,id'],
+        'unit_id' => ['sometimes', 'nullable', 'integer', 'exists:units,id'],
+
+        'position_id' => ['sometimes', 'nullable', 'integer', 'exists:positions,id'],
+        'manager_id' => ['sometimes', 'nullable', 'integer', 'exists:employees,id'],
+
+        'effective_from' => ['sometimes', 'required', 'date'],
+        'reason' => ['sometimes', 'nullable', 'string', 'max:500'],
+    ]);
+
+    $placementKeys = ['office_id', 'division_id', 'unit_id'];
+
+    $hasPlacementChange = array_intersect(
+        $placementKeys,
+        array_keys($data)
+    ) !== [];
+
+    // Penempatan harus dikirim secara lengkap.
+    if ($hasPlacementChange) {
+        foreach ($placementKeys as $field) {
+            if (! array_key_exists($field, $data)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    $field => "Field {$field} wajib dikirim ketika mengubah penempatan karyawan. Gunakan null untuk unit jika tidak ada.",
+                ]);
+            }
+        }
+    }
+
+    // Metadata histori hanya boleh digunakan saat mengubah penempatan.
+    if (
+        ! $hasPlacementChange
+        && (
+            array_key_exists('effective_from', $data)
+            || array_key_exists('reason', $data)
+        )
+    ) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'effective_from' => 'Tanggal efektif dan alasan hanya digunakan ketika mengubah penempatan karyawan.',
+        ]);
+    }
+
+    if (
+        array_key_exists('manager_id', $data)
+        && $data['manager_id'] !== null
+    ) {
+        abort_if(
+            (int) $data['manager_id'] === (int) $employee->id,
+            422,
+            'Karyawan tidak dapat menjadi atasannya sendiri.'
+        );
+    }
+
+    $old = $employee->getAttributes();
+
+    $updatedEmployee = DB::transaction(function () use (
+        $employee,
+        $data,
+        $hasPlacementChange
+    ): Employee {
+        $lockedEmployee = Employee::query()
+            ->lockForUpdate()
+            ->findOrFail($employee->id);
+
+        // Hanya atribut dasar yang boleh diperbarui secara langsung.
+        $employeeFields = [
+            'nip',
+            'full_name',
+            'email',
+            'phone',
+            'gender',
+            'join_date',
+            'employment_status',
+            'position_id',
+            'manager_id',
+        ];
+
+        $attributes = array_intersect_key(
+            $data,
+            array_flip($employeeFields)
+        );
+
+        if ($attributes !== []) {
+            $lockedEmployee->fill($attributes);
+            $lockedEmployee->save();
+        }
+
+        // Perubahan penempatan harus melalui generator
+        if ($hasPlacementChange) {
+            $lockedEmployee = app(
+                \App\Services\EmployeeCodeGeneratorService::class
+            )->assignOrChange(
+                employee: $lockedEmployee,
+                officeId: (int) $data['office_id'],
+                divisionId: (int) $data['division_id'],
+                unitId: $data['unit_id'] !== null
+                    ? (int) $data['unit_id']
+                    : null,
+                reason: $data['reason'] ?? 'Perubahan penempatan karyawan',
+                createdBy: auth()->id(),
+                effectiveFrom: $data['effective_from'] ?? now()->toDateString(),
             );
         }
 
-        if ($request->query('department_id')) {
-            $query->where('department_id', $request->query('department_id'));
-        }
+        // Nonaktifkan akun login apabila karyawan tidak lagi aktif
+        if (
+            array_key_exists('employment_status', $data)
+            && $data['employment_status'] !== Employee::STATUS_ACTIVE
+        ) {
+            $user = $lockedEmployee->user()
+                ->lockForUpdate()
+                ->first();
 
-        if ($request->query('division_id')) {
-            $query->where('division_id', $request->query('division_id'));
-        }
+            if ($user) {
+                $user->forceFill(['is_active' => false])->save();
+                $user->tokens()->delete();
 
-        if ($request->query('employment_status')) {
-            $query->where('employment_status', $request->query('employment_status'));
-        }
-
-        return $this->paginated($query->orderBy('full_name')->paginate($request->integer('per_page', 15)));
-    }
-
-    public function store(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'nip' => 'required|string|max:30|unique:employees,nip',
-            'full_name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:30',
-            'gender' => 'nullable|in:MALE,FEMALE',
-            'join_date' => 'nullable|date',
-            'employment_status' => 'in:ACTIVE,INACTIVE,RESIGNED',
-            'department_id' => 'nullable|exists:departments,id',
-            'division_id' => 'nullable|exists:divisions,id',
-            'position_id' => 'nullable|exists:positions,id',
-            'manager_id' => 'nullable|integer|exists:employees,id',
-        ]);
-
-        if (! empty($data['department_id']) && ! empty($data['division_id'])) {
-            abort_unless(\App\Models\Division::whereKey($data['division_id'])->where('department_id', $data['department_id'])->exists(), 422, 'Divisi tidak berada pada departemen yang dipilih.');
-        }
-
-        if (! empty($data['manager_id'])) {
-            abort_if((int) $data['manager_id'] === (int) auth()->user()?->employee_id, 422, 'Karyawan tidak dapat menjadi atasannya sendiri.');
-        }
-
-        $employee = Employee::create($data);
-
-        AuditService::created('EMPLOYEE', $employee, $request);
-        if ($employee->isActive()) {
-            $this->devicePushes->queueFor($employee, 'UPSERT');
-        }
-
-        return $this->created($employee->load(['department', 'division', 'position']), 'Karyawan berhasil ditambahkan');
-    }
-
-    public function show(int $id): JsonResponse
-    {
-        $employee = Employee::with(['department', 'division', 'position', 'user.roles'])->findOrFail($id);
-
-        $this->assertCanAccessEmployee($employee->id);
-
-        return $this->success($employee);
-    }
-
-    public function update(Request $request, int $id): JsonResponse
-    {
-        $employee = Employee::findOrFail($id);
-
-        $data = $request->validate([
-            'nip' => 'sometimes|string|max:30|unique:employees,nip,'.$id,
-            'full_name' => 'sometimes|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:30',
-            'gender' => 'nullable|in:MALE,FEMALE',
-            'join_date' => 'nullable|date',
-            'employment_status' => 'in:ACTIVE,INACTIVE,RESIGNED',
-            'department_id' => 'nullable|exists:departments,id',
-            'division_id' => 'nullable|exists:divisions,id',
-            'position_id' => 'nullable|exists:positions,id',
-            'manager_id' => 'nullable|integer|exists:employees,id',
-        ]);
-
-        if (! empty($data['department_id']) && ! empty($data['division_id'])) {
-            abort_unless(\App\Models\Division::whereKey($data['division_id'])->where('department_id', $data['department_id'])->exists(), 422, 'Divisi tidak berada pada departemen yang dipilih.');
-        }
-
-        if (array_key_exists('manager_id', $data) && $data['manager_id'] !== null) {
-            abort_if((int) $data['manager_id'] === (int) $employee->id, 422, 'Karyawan tidak dapat menjadi atasannya sendiri.');
-        }
-
-        $old = $employee->only(array_keys($data));
-        DB::transaction(function () use ($employee, $data): void {
-            $employee->update($data);
-
-            if (array_key_exists('employment_status', $data) && $data['employment_status'] !== Employee::STATUS_ACTIVE) {
-                $user = $employee->user;
-                if ($user) {
-                    $user->forceFill(['is_active' => false])->save();
-                    $user->tokens()->delete();
-                    SessionRecord::query()->where('user_id', $user->id)->delete();
-                }
+                SessionRecord::query()
+                    ->where('user_id', $user->id)
+                    ->delete();
             }
-        }, 3);
-
-        AuditService::updated('EMPLOYEE', $employee, $old, $request);
-
-        $employee->refresh();
-        $deviceRelevantFields = ['nip', 'full_name', 'device_user_identifier', 'employment_status'];
-        if (array_intersect(array_keys($data), $deviceRelevantFields) !== []) {
-            $operation = $employee->isActive() ? 'UPSERT' : 'DISABLE';
-            $this->devicePushes->queueFor($employee, $operation);
         }
 
-        return $this->success($employee->load(['department', 'division', 'position']), 'Data karyawan diperbarui');
+        return $lockedEmployee->fresh();
+    }, 3);
+
+    AuditService::updated(
+        'EMPLOYEE',
+        $updatedEmployee,
+        $old,
+        $request
+    );
+
+    $deviceRelevantFields = [
+        'nip',
+        'full_name',
+        'device_user_identifier',
+        'employment_status',
+    ];
+
+    if (
+        array_intersect(
+            array_keys($data),
+            $deviceRelevantFields
+        ) !== []
+    ) {
+        $operation = $updatedEmployee->isActive()
+            ? 'UPSERT'
+            : 'DISABLE';
+
+        $this->devicePushes->queueFor(
+            $updatedEmployee,
+            $operation
+        );
     }
 
-    /** DELETE /employees/{id} — BR-06: nonaktifkan, bukan hapus fisik. */
+    return $this->success(
+        $updatedEmployee->load([
+            'office',
+            'division',
+            'unit',
+            'position',
+        ]),
+        'Data karyawan berhasil diperbarui.'
+    );
+}
+
+
+    /* DELETE /employees/{id} —  nonaktifkan, bukan hapus fisik */
     public function destroy(Request $request, int $id): JsonResponse
     {
         $employee = Employee::findOrFail($id);
@@ -167,59 +354,141 @@ class EmployeeController extends Controller
         return $this->success(null, 'Karyawan dinonaktifkan. Akun login dan seluruh token terkait juga dinonaktifkan; permintaan penonaktifan perangkat dijadwalkan bila SDK mendukungnya. Riwayat historis tetap disimpan.');
     }
 
-    /** POST /employees/import — impor massal, diproses lewat antrean (202). */
-    public function import(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'rows' => 'required|array|min:1|max:1000',
-            'rows.*.nip' => 'required|string|max:30|distinct',
-            'rows.*.full_name' => 'required|string|max:255',
-            'rows.*.email' => 'nullable|email|max:255',
-        ]);
+    /* POST /employees/import — impor massal, diproses lewat antrean (202) */
 
-        $createdEmployees = [];
-        $skipped = 0;
+public function import(Request $request): JsonResponse
+{
+    $data = $request->validate([
+        'rows' => ['required', 'array', 'min:1', 'max:1000'],
 
-        foreach ($data['rows'] as $row) {
-            if (Employee::query()->where('nip', $row['nip'])->exists()) {
+        'rows.*.nip' => ['required', 'string', 'max:30', 'distinct'],
+        'rows.*.full_name' => ['required', 'string', 'max:255'],
+        'rows.*.email' => ['nullable', 'email', 'max:255'],
+        'rows.*.phone' => ['nullable', 'string', 'max:30'],
+        'rows.*.gender' => ['nullable', 'in:MALE,FEMALE'],
+        'rows.*.join_date' => ['nullable', 'date'],
+        'rows.*.employment_status' => [
+            'sometimes',
+            'in:ACTIVE,INACTIVE,RESIGNED',
+        ],
+
+        // Penempatan wajib disertakan untuk setiap karyawan.
+        'rows.*.office_id' => [
+            'required',
+            'integer',
+            'exists:offices,id',
+        ],
+        'rows.*.division_id' => [
+            'required',
+            'integer',
+            'exists:divisions,id',
+        ],
+        'rows.*.unit_id' => [
+            'present',
+            'nullable',
+            'integer',
+            'exists:units,id',
+        ],
+
+        'rows.*.position_id' => [
+            'nullable',
+            'integer',
+            'exists:positions,id',
+        ],
+        'rows.*.manager_id' => [
+            'nullable',
+            'integer',
+            'exists:employees,id',
+        ],
+        'rows.*.effective_from' => ['nullable', 'date'],
+        'rows.*.reason' => ['nullable', 'string', 'max:500'],
+    ]);
+
+    $createdEmployees = [];
+    $skipped = 0;
+
+    foreach ($data['rows'] as $row) {
+        // NIP yang sudah ada tidak dibuat ulang
+        if (Employee::query()->where('nip', $row['nip'])->exists()) {
+            $skipped++;
+            continue;
+        }
+
+        try {
+            $employee = DB::transaction(function () use ($row): Employee {
+                $employee = Employee::query()->create([
+                    'nip' => $row['nip'],
+                    'full_name' => $row['full_name'],
+                    'email' => $row['email'] ?? null,
+                    'phone' => $row['phone'] ?? null,
+                    'gender' => $row['gender'] ?? null,
+                    'join_date' => $row['join_date'] ?? null,
+                    'employment_status' => $row['employment_status']
+                        ?? Employee::STATUS_ACTIVE,
+                    'position_id' => $row['position_id'] ?? null,
+                    'manager_id' => $row['manager_id'] ?? null,
+                ]);
+
+                return app(
+                    \App\Services\EmployeeCodeGeneratorService::class
+                )->assignOrChange(
+                    employee: $employee,
+                    officeId: (int) $row['office_id'],
+                    divisionId: (int) $row['division_id'],
+                    unitId: $row['unit_id'] !== null
+                        ? (int) $row['unit_id']
+                        : null,
+                    reason: $row['reason']
+                        ?? 'Impor massal data karyawan',
+                    createdBy: auth()->id(),
+                    effectiveFrom: $row['effective_from']
+                        ?? now()->toDateString(),
+                );
+            }, 3);
+
+            $createdEmployees[] = $employee;
+
+        } catch (\Illuminate\Database\QueryException $exception) {
+            // Menangani konflik NIP akibat proses bersamaan
+            if (($exception->errorInfo[0] ?? $exception->getCode()) === '23505') {
                 $skipped++;
                 continue;
             }
 
-            try {
-                $employee = DB::transaction(fn () => Employee::create(
-                    $row + ['employment_status' => Employee::STATUS_ACTIVE]
-                ), 3);
-                $createdEmployees[] = $employee;
-            } catch (\Illuminate\Database\QueryException $exception) {
-                // Unique constraint tetap menjadi penjaga utama pada race import.
-                // Hanya konflik NIP yang dihitung sebagai skipped; error lain dilempar.
-                if (($exception->errorInfo[0] ?? $exception->getCode()) === '23505') {
-                    $skipped++;
-                    continue;
-                }
-
-                throw $exception;
-            }
+            throw $exception;
         }
-
-        $pushJobsQueued = 0;
-        foreach ($createdEmployees as $employee) {
-            // Push hanya perubahan karyawan yang baru diimpor, tidak seluruh
-            // karyawan pada setiap siklus sync 15 menit.
-            $pushJobsQueued += $this->devicePushes->queueFor($employee, 'UPSERT');
-        }
-
-        AuditService::record('EMPLOYEE', 'IMPORT', 'employees', null, null, [
-            'created' => count($createdEmployees),
-            'skipped' => $skipped,
-            'device_push_jobs_queued' => $pushJobsQueued,
-        ], $request);
-
-        return $this->accepted([
-            'created' => count($createdEmployees),
-            'skipped' => $skipped,
-            'device_push_jobs_queued' => $pushJobsQueued,
-        ], 'Impor karyawan selesai; sinkronisasi ke perangkat telah diantrikan.');
     }
+
+    $pushJobsQueued = 0;
+
+    foreach ($createdEmployees as $employee) {
+        $operation = $employee->isActive() ? 'UPSERT' : 'DISABLE';
+
+        $pushJobsQueued += $this->devicePushes->queueFor(
+            $employee,
+            $operation
+        );
+    }
+
+    AuditService::record(
+        'EMPLOYEE',
+        'IMPORT',
+        'employees',
+        null,
+        null,
+        [
+            'created' => count($createdEmployees),
+            'skipped' => $skipped,
+            'device_push_jobs_queued' => $pushJobsQueued,
+        ],
+        $request
+    );
+
+    return $this->accepted([
+        'created' => count($createdEmployees),
+        'skipped' => $skipped,
+        'device_push_jobs_queued' => $pushJobsQueued,
+    ], 'Impor karyawan selesai; Employee ID dan histori penempatan telah dibuat.');
+}
+
 }

@@ -13,9 +13,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-/**
- * Kirim peringatan EARLY_DEPARTURE ke HRD dan karyawan terkait.
- * Idempoten: NotificationService memakai unique idempotency_key.
+/*
+  Kirim peringatan EARLY_DEPARTURE ke HRD dan karyawan terkait.
+  Idempoten: NotificationService memakai unique idempotency_key
  */
 class WarningNotificationJob implements ShouldQueue
 {
@@ -23,7 +23,7 @@ class WarningNotificationJob implements ShouldQueue
 
     public int $tries = 3;
 
-    /** Exponential backoff (detik). */
+    /* Exponential backoff (detik) */
     public array $backoff = [10, 60, 300];
 
     public int $timeout = 30;
@@ -58,12 +58,14 @@ class WarningNotificationJob implements ShouldQueue
         // 1) HRD — pesan berorientasi pengawasan.
         $hrdSent = $notifications->notifyRole(Role::HRD, array_merge($base, [
             'title' => 'Peringatan Pulang Cepat: '.($p['employee_name'] ?? '-'),
-            'body' => $detail.' Status EARLY_DEPARTURE. Departemen: '.($p['department'] ?? '-')
-                .', Divisi: '.($p['division'] ?? '-').', Tanggal: '.($p['event_date'] ?? '-')
-                .', Shift: '.($p['shift'] ?? '-').'. Tidak ada potongan gaji.',
+            'body' => $detail.' Status EARLY_DEPARTURE. Kantor: '.($p['office'] ?? '-')
+    .', Divisi: '.($p['division'] ?? '-')
+    .', Unit: '.($p['unit'] ?? '-')
+    .', Tanggal: '.($p['event_date'] ?? '-')
+    .', Shift: '.($p['shift'] ?? '-').'. Tidak ada potongan gaji.',
         ]));
 
-        // 2) Karyawan terkait — pesan berorientasi pembinaan.
+        //  Karyawan terkait — pesan berorientasi pembinaan
         $employee = $event->employee;
         $employeeSent = 0;
 

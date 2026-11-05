@@ -28,9 +28,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
-/**
- * Modul pendukung: dashboard, notifikasi, pengguna & role, pengaturan,
- * laporan, audit log, komponen PPh, dan perangkat.
+/*
+  Modul pendukung: dashboard, notifikasi, pengguna & role, pengaturan,
+  laporan, audit log, komponen PPh, dan perangkat
  */
 class SystemController extends Controller
 {
@@ -39,9 +39,7 @@ class SystemController extends Controller
         protected DeductionService $deductions,
     ) {}
 
-    // ---------------------------------------------------------------
     // Dashboard
-    // ---------------------------------------------------------------
 
     public function hrdSummary(Request $request): JsonResponse
     {
@@ -130,9 +128,7 @@ class SystemController extends Controller
         ]);
     }
 
-    // ---------------------------------------------------------------
     // Notifikasi
-    // ---------------------------------------------------------------
 
     public function notifications(Request $request): JsonResponse
     {
@@ -161,9 +157,7 @@ class SystemController extends Controller
         return $this->success(['updated' => $count], 'Semua notifikasi ditandai dibaca');
     }
 
-    // ---------------------------------------------------------------
     // Pengguna & role
-    // ---------------------------------------------------------------
 
     public function users(Request $request): JsonResponse
     {
@@ -190,7 +184,7 @@ class SystemController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        // Akun HRD tidak dibuat melalui endpoint ini. HRD hanya membuat akun KADIV/Employee.
+        // Akun HRD tidak dibuat melalui endpoint ini. HRD hanya membuat akun KADIV/Employee
         $plainToken = \Illuminate\Support\Str::random(64);
         $expiresAt = now()->addHours((int) config('auth.activation_ttl_hours', 72));
         $temporaryPassword = \Illuminate\Support\Str::random(96);
@@ -212,7 +206,7 @@ class SystemController extends Controller
                 'activation_expires_at' => $expiresAt,
             ]);
 
-            $this->syncRoles($user, [$data['role']]);
+            $this->syncRole($user, $data['role']);
 
             return $user;
         }, 3);
@@ -230,7 +224,100 @@ class SystemController extends Controller
         ], 'Akun KADIV/Employee berhasil dibuat. Pengguna harus mengatur password melalui aktivasi.');
     }
 
-    /** PATCH /system/users/{id}/status — aktivasi/nonaktif akun hanya oleh HRD. */
+
+/*
+  PATCH /system/users/{id}/role
+  Perubahan role akun hanya dapat dilakukan oleh HRD
+ */
+public function updateUserRole(Request $request, int $id): JsonResponse
+{
+    $data = $request->validate([
+        'role' => ['required', 'string', 'in:KADIV,EMPLOYEE'],
+    ]);
+
+    $result = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $data): array {
+        $user = User::query()
+            ->lockForUpdate()
+            ->findOrFail($id);
+
+        $user->load('employee');
+
+        $oldRole = $user->primaryRole();
+
+        // Akun HRD tidak dapat diubah melalui pengelolaan akun biasa
+
+        abort_if(
+            $oldRole === Role::HRD,
+            403,
+            'Role akun HRD tidak dapat diubah melalui pengelolaan akun KADIV/Employee.'
+        );
+
+        abort_if(
+            ! $user->employee,
+            422,
+            'Akun tidak terhubung dengan data karyawan.'
+        );
+
+        // KADIV wajib mempunyai divisi
+        if ($data['role'] === Role::KADIV) {
+            abort_if(
+                ! $user->employee->division_id,
+                422,
+                'Akun KADIV harus terhubung dengan karyawan yang memiliki divisi.'
+            );
+        }
+
+        $newRole = Role::query()
+            ->where('name', $data['role'])
+            ->firstOrFail();
+
+        $changed = $oldRole !== $newRole->name;
+
+        if ($changed) {
+            // Mengganti role lama dengan tepat satu role baru
+            $user->roles()->sync([$newRole->id]);
+
+            // Cabut seluruh token dan session agar perubahan hak akses
+            // langsung berlaku pada autentikasi berikutnya
+            $user->tokens()->delete();
+
+            \App\Models\Session::query()
+                ->where('user_id', $user->id)
+                ->delete();
+        }
+
+        return [
+            'user' => $user->fresh()->load([
+                'roles',
+                'employee:id,nip,full_name',
+            ]),
+            'old_role' => $oldRole,
+            'changed' => $changed,
+        ];
+    }, 3);
+
+    if ($result['changed']) {
+        AuditService::record(
+            'USER',
+            'CHANGE_ROLE',
+            'users',
+            $result['user']->id,
+            ['role' => $result['old_role']],
+            ['role' => $data['role']],
+            $request
+        );
+    }
+
+    return $this->success(
+        $result['user'],
+        $result['changed']
+            ? 'Role akun berhasil diubah. Seluruh token dan session lama telah dicabut.'
+            : 'Role akun sudah sesuai.'
+    );
+}
+
+
+    /* PATCH /system/users/{id}/status — aktivasi/nonaktif akun hanya oleh HRD */
     public function updateUserStatus(Request $request, int $id): JsonResponse
     {
         $data = $request->validate(['is_active' => ['required', 'boolean']]);
@@ -318,9 +405,7 @@ class SystemController extends Controller
         return $this->success(Permission::orderBy('module')->get());
     }
 
-    // ---------------------------------------------------------------
     // Pengaturan
-    // ---------------------------------------------------------------
 
     public function settings(): JsonResponse
     {
@@ -352,9 +437,7 @@ class SystemController extends Controller
         return $this->success(['updated' => $updated], 'Pengaturan berhasil disimpan');
     }
 
-    // ---------------------------------------------------------------
     // Laporan
-    // ---------------------------------------------------------------
 
     public function reports(Request $request): JsonResponse
     {
@@ -405,9 +488,7 @@ class SystemController extends Controller
         return $this->success($report, 'Laporan siap diunduh');
     }
 
-    // ---------------------------------------------------------------
-    // Audit log
-    // ---------------------------------------------------------------
+    //Audit log
 
     public function auditLogs(Request $request): JsonResponse
     {
@@ -455,9 +536,7 @@ class SystemController extends Controller
         return response()->streamDownload(fn () => print($csv), $filename, ['Content-Type' => 'text/csv']);
     }
 
-    // ---------------------------------------------------------------
-    // Komponen PPh (modul ekstensi yang dapat dimatikan)
-    // ---------------------------------------------------------------
+    //  Komponen PPh (modul ekstensi yang dapat dimatikan)
 
     public function taxComponents(): JsonResponse
     {
@@ -527,7 +606,7 @@ class SystemController extends Controller
         return $this->success(null, 'Komponen PPh dihapus');
     }
 
-    /** PUT /tax-components/toggle — saklar global PPh. */
+    /* PUT /tax-components/toggle — saklar global PPh. */
     public function toggleTax(Request $request): JsonResponse
     {
         $data = $request->validate(['enabled' => 'required|boolean']);
@@ -559,10 +638,9 @@ class SystemController extends Controller
         );
     }
 
-    // ---------------------------------------------------------------
+
     // Perangkat
-    // ---------------------------------------------------------------
-    // CATATAN: uji koneksi & sinkronisasi dipindah ke DeviceSyncController.
+    // CATATAN: uji koneksi & sinkronisasi dipindah ke DeviceSyncController
     // Implementasi lama (fsockopen + update last_sync_at) dihapus karena
     // melaporkan SUCCESS tanpa pernah menarik log dari perangkat. Endpoint
     // /devices/{id}/logs di bawah hanya menampilkan IntegrationLog yang
@@ -579,13 +657,17 @@ class SystemController extends Controller
         return $this->success($logs);
     }
 
-    // ---------------------------------------------------------------
     // Pembantu
-    // ---------------------------------------------------------------
 
-    protected function syncRoles(User $user, array $roles): void
-    {
-        $roleIds = Role::whereIn('name', $roles)->pluck('id');
-        $user->roles()->sync($roleIds);
-    }
+/*
+  Menetapkan tepat satu role untuk satu akun.
+ */
+protected function syncRole(User $user, string $roleName): void
+{
+    $role = Role::query()
+        ->where('name', $roleName)
+        ->firstOrFail();
+
+    $user->roles()->sync([$role->id]);
+}
 }
