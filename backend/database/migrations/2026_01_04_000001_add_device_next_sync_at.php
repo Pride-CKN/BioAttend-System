@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /* Additive scheduler cursor; existing sync history and data are preserved. */
+    /** Additive scheduler cursor; existing sync history and data are preserved. */
     public function up(): void
     {
         Schema::table('devices', function (Blueprint $table) {

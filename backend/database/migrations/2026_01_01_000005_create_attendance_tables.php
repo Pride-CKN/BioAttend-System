@@ -6,7 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /*Inti absensi: attendance_logs (append-only), attendance_records, attendance_corrections*/
+    /**
+     * Inti absensi: attendance_logs (append-only), attendance_records,
+     * attendance_corrections (PRD 19.2, BR-03, BR-04, BR-16).
+     */
     public function up(): void
     {
         // Raw log pemindaian — APPEND-ONLY (BR-04)
@@ -26,7 +29,7 @@ return new class extends Migration
             $table->index(['device_id', 'processing_status'], 'att_logs_dev_status_idx');
         });
 
-        // Satu record per karyawan per hari kerja
+        // Satu record per karyawan per hari kerja (BR-03)
         Schema::create('attendance_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();

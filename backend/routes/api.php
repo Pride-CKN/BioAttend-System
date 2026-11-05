@@ -39,7 +39,7 @@ Route::get('/health', fn () => response()->json([
 
 Route::prefix('v1')->group(function () {
 
-    /*1. Autentikasi (publik + terautentikasi)*/
+    /*Autentikasi (publik + terautentikasi)*/
     Route::prefix('auth')->group(function () {
         // 5 percobaan / 15 menit per (email + IP), didefinisikan
         // pada RateLimiter::for('login') di AppServiceProvider
@@ -64,7 +64,7 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    /*  2. Semua endpoint terautentikasi*/
+    /*  Semua endpoint terautentikasi*/
     Route::middleware(['auth:sanctum', 'password.changed'])->group(function () {
 
         /* Dashboard */

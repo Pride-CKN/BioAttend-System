@@ -6,8 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /*Otentikasi & otorisasi: roles, permissions, penghubung, users, sessions
-      Token API ditangani Sanctum (personal_access_tokens)*/
+    /**
+     * Otentikasi & otorisasi: roles, permissions, penghubung, users, sessions (PRD 19.2, 20.1).
+     * Token API ditangani Sanctum (personal_access_tokens).
+     */
     public function up(): void
     {
         Schema::create('roles', function (Blueprint $table) {
@@ -44,7 +46,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
-            // Kolom `password` berisi bcrypt hash
+            // Kolom `password` berisi bcrypt hash (PRD 20.1: cost >= 10)
             $table->string('password');
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_login_at')->nullable();

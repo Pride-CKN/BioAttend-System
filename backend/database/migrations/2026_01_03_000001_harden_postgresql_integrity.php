@@ -3,13 +3,13 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-/*
-  PostgreSQL production hardening.
-
-  This migration is intentionally additive: it adds constraints, indexes and
-  database-level immutability protections without dropping application data.
-  SQLite remains available for isolated automated tests; production schema
-  guarantees must be verified against PostgreSQL
+/**
+ * PostgreSQL production hardening.
+ *
+ * This migration is intentionally additive: it adds constraints, indexes and
+ * database-level immutability protections without dropping application data.
+ * SQLite remains available for isolated automated tests; production schema
+ * guarantees must be verified against PostgreSQL.
  */
 return new class extends Migration
 {
@@ -17,7 +17,7 @@ return new class extends Migration
     {
         if (DB::getDriverName() !== 'pgsql') {
             // The production database is PostgreSQL. SQLite is used only when
-            // explicitly selected by the test environment (phpunit.xml)
+            // explicitly selected by the test environment (phpunit.xml).
             return;
         }
 
