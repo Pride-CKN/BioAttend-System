@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /** Additive scheduler cursor; existing sync history and data are preserved. */
+    /* Kursor penjadwal aditif; riwayat sinkronisasi dan data yang sudah ada tetap dipertahankan */
     public function up(): void
     {
         Schema::table('devices', function (Blueprint $table) {
@@ -18,6 +18,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Intentionally retain operational scheduling data on rollback.
+        // Sengaja menyimpan data penjadwalan operasional saat rollback.
     }
 };
