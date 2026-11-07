@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /*Memastikan satu user hanya memiliki satu role*/
+    /* Memastikan satu user hanya memiliki satu role */
     public function up(): void
     {
         Schema::table('role_user', function (Blueprint $table) {
@@ -15,7 +15,7 @@ return new class extends Migration
         });
     }
 
-    /*Menghapus pembatas satu role per user*/
+    /* Menghapus pembatas satu role per user */
     public function down(): void
     {
         Schema::table('role_user', function (Blueprint $table) {

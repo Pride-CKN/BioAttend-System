@@ -14,11 +14,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-/**
- * Memproses raw log yang SUDAH tersimpan menjadi attendance records.
- * Queue terpisah dari pull log: kegagalan job ini tidak pernah menyebabkan
- * log ditarik ulang dari perangkat (PRD 6.D).
- */
+/* Memproses raw log yang SUDAH tersimpan menjadi attendance records.
+  Queue terpisah dari pull log: kegagalan job ini tidak pernah menyebabkan
+  log ditarik ulang dari perangkat */
 class AttendanceProcessingJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -49,7 +47,7 @@ class AttendanceProcessingJob implements ShouldQueue
             $employee = Employee::find($log->employee_id);
 
             if (! $employee) {
-                // Tetap unmatched; jangan ubah bukti asli.
+                // Tetap unmatched; jangan ubah bukti asli
                 continue;
             }
 
@@ -65,7 +63,7 @@ class AttendanceProcessingJob implements ShouldQueue
                     $processor->processEmployeeDate($employeeId, $workDate);
                 });
             } catch (\Throwable $e) {
-                // Satu tanggal kerja gagal tidak menggagalkan tanggal lain.
+                // Satu tanggal kerja gagal tidak menggagalkan tanggal lain
                 Log::warning('Attendance processing failed for one work date', [
                     'employee_id' => $employeeId, 'work_date' => $workDate,
                     'error' => $e->getMessage(),

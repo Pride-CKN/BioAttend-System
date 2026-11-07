@@ -4,9 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-/*
-  Hari libur aktif mengesampingkan kewajiban hadir
- */
+/* Hari libur aktif mengesampingkan kewajiban hadir */
 class Holiday extends Model
 {
     protected $fillable = [

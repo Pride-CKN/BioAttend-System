@@ -10,6 +10,7 @@ use App\Jobs\DeviceSyncJob;
 use App\Models\AttendanceLog;
 use App\Models\AttendanceLogMappingHistory;
 use App\Models\Device;
+use App\Enums\DeviceStatus;
 use App\Models\DeviceCheckpoint;
 use App\Models\DeviceSyncHistory;
 use App\Models\Employee;
@@ -22,15 +23,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/**
- * Integrasi perangkat ZKTeco
- *
- * Endpoint di sini TIDAK melakukan koneksi LAN secara langsung. Semua
- * pekerjaan perangkat didelegasikan ke DeviceSyncService / DeviceSyncJob
- * sehingga status yang dikembalikan selalu mencerminkan keadaan nyata.
- * Bila vendor SDK belum terpasang, hasilnya dilaporkan sebagai BLOCKED,
- * bukan "berhasil" (lihat docs/ZKTECO-INTEGRATION.md).
- */
+/*Integrasi perangkat ZKTeco
+ 
+  Endpoint di sini TIDAK melakukan koneksi LAN secara langsung. Semua
+  pekerjaan perangkat didelegasikan ke DeviceSyncService / DeviceSyncJob
+  sehingga status yang dikembalikan selalu mencerminkan keadaan nyata.
+  Bila vendor SDK belum terpasang, hasilnya dilaporkan sebagai BLOCKED,
+  bukan "berhasil" (lihat docs/ZKTECO-INTEGRATION.md) */
 class DeviceSyncController extends Controller
 {
     use ApiResponse;
@@ -40,11 +39,9 @@ class DeviceSyncController extends Controller
         protected DeviceEmployeePushService $pushes,
     ) {}
 
-    // ---------------------------------------------------------------
     // Koneksi & sinkronisasi
-    // ---------------------------------------------------------------
 
-    /** POST /devices/{id}/test — uji koneksi lewat adapter (bukan ping TCP). */
+    /* POST /devices/{id}/test — uji koneksi lewat adapter (bukan ping TCP) */
     public function testConnection(int $id): JsonResponse
     {
         $device = Device::findOrFail($id);
@@ -68,7 +65,7 @@ class DeviceSyncController extends Controller
         ], $result->isConnected() ? 'Perangkat terhubung' : 'Perangkat tidak terhubung');
     }
 
-    /** POST /devices/{id}/sync — dispatch job, bukan update last_sync_at palsu. */
+    /* POST /devices/{id}/sync — dispatch job, bukan update last_sync_at palsu */
     public function sync(int $id): JsonResponse
     {
         $device = Device::findOrFail($id);
@@ -91,7 +88,7 @@ class DeviceSyncController extends Controller
         ], 'Sinkronisasi perangkat dimasukkan ke antrean');
     }
 
-    /** POST /devices/{id}/retry — ulang hanya bila siklus terakhir gagal. */
+    /* POST /devices/{id}/retry — ulang hanya bila siklus terakhir gagal */
     public function retry(int $id): JsonResponse
     {
         $device = Device::findOrFail($id);
@@ -127,11 +124,9 @@ class DeviceSyncController extends Controller
         ], 'Sinkronisasi ulang dimasukkan ke antrean');
     }
 
-    // ---------------------------------------------------------------
     // Riwayat & kesehatan
-    // ---------------------------------------------------------------
 
-    /** GET /devices/sync-histories — seluruh perangkat, pagination + filter. */
+    /* GET /devices/sync-histories — seluruh perangkat, pagination + filter */
     public function histories(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -160,7 +155,7 @@ class DeviceSyncController extends Controller
         return $this->paginated($query->paginate($validated['per_page'] ?? 20));
     }
 
-    /** GET /devices/{id}/histories — riwayat satu perangkat. */
+    /* GET /devices/{id}/histories — riwayat satu perangkat */
     public function deviceHistories(int $id, Request $request): JsonResponse
     {
         Device::findOrFail($id);
@@ -181,7 +176,7 @@ class DeviceSyncController extends Controller
         return $this->paginated($query->paginate($validated['per_page'] ?? 20));
     }
 
-    /** GET /devices/{id}/checkpoint — posisi sinkronisasi & strategi jujur. */
+    /* GET /devices/{id}/checkpoint — posisi sinkronisasi & strategi jujur */
     public function checkpoint(int $id): JsonResponse
     {
         $device = Device::findOrFail($id);
@@ -204,36 +199,31 @@ class DeviceSyncController extends Controller
         ]);
     }
 
-    /** GET /devices/offline — perangkat yang perlu perhatian HRD. */
+    /* GET /devices/offline — perangkat yang perlu perhatian HRD */
     public function offline(): JsonResponse
     {
-        $devices = Device::query()
-            ->where('is_active', true)
-            ->whereIn('status', [
-                Device::STATUS_OFFLINE, Device::STATUS_ERROR,
-                Device::STATUS_TIMEOUT, Device::STATUS_AUTH_FAILED,
-            ])
-            ->orderBy('id')
-            ->get()
-            ->map(fn (Device $d) => [
-                'id' => $d->id,
-                'name' => $d->name,
-                'ip_address' => $d->ip_address,
-                'status' => $d->status,
-                'consecutive_failures' => $d->consecutive_failures,
-                'last_error_code' => $d->last_error_code,
-                'last_error_message' => $d->last_error_message,
-                'last_successful_connection_at' => $d->last_successful_connection_at?->toIso8601String(),
-            ]);
+    $devices = Device::query()
+        ->where('is_active', true)
+        ->where('status', DeviceStatus::Offline->value)
+        ->orderBy('id')
+        ->get()
+        ->map(static fn ($d) => [
+            'id' => $d->id,
+            'name' => $d->name,
+            'ip_address' => $d->ip_address,
+            'status' => $d->status->value,
+            'consecutive_failures' => $d->consecutive_failures,
+            'last_error_code' => $d->last_error_code,
+            'last_error_message' => $d->last_error_message,
+            'last_successful_connection_at' => $d->last_successful_connection_at?->toIso8601String(),
+        ]);
 
-        return $this->success($devices);
+    return $this->success($devices);
     }
 
-    // ---------------------------------------------------------------
     // Push karyawan (event-driven)
-    // ---------------------------------------------------------------
 
-    /** POST /devices/push-employee */
+    /* POST /devices/push-employee */
     public function pushEmployee(PushEmployeeToDeviceRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -265,7 +255,7 @@ class DeviceSyncController extends Controller
 
     // Log unmatched// 
 
-    /** GET /attendance/unmatched-logs */
+    /* GET /attendance/unmatched-logs */
     public function unmatchedLogs(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -293,7 +283,7 @@ class DeviceSyncController extends Controller
         return $this->paginated($query->paginate($validated['per_page'] ?? 20));
     }
 
-    /** POST /attendance/unmatched-logs/{id}/map */
+    /* POST /attendance/unmatched-logs/{id}/map */
     public function mapUnmatchedLog(MapUnmatchedLogRequest $request, int $id): JsonResponse
     {
         $data = $request->validated();
@@ -307,7 +297,7 @@ class DeviceSyncController extends Controller
 
         DB::transaction(function () use ($log, $data, $request, $previous): void {
             // Hanya metadata pemrosesan yang diubah. Bukti asli (scanned_at,
-            // fingerprint, payload) dikunci oleh guard append-only di model.
+            // fingerprint, payload) dikunci oleh guard append-only di model
             $log->update([
                 'employee_id' => (int) $data['employee_id'],
                 'processing_status' => AttendanceLog::STATUS_PENDING,

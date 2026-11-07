@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\Role;
+use App\Models\User;
+use App\Services\EmployeeCodeGeneratorService;
+use App\Services\Device\DeviceEmployeePushService;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Services\AuditService;
-use App\Services\Device\DeviceEmployeePushService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +18,7 @@ use App\Models\Session as SessionRecord;
 
 class EmployeeController extends Controller
 {
-    public function __construct(protected DeviceEmployeePushService $devicePushes) {}
+        public function __construct(protected DeviceEmployeePushService $devicePushes) {}
 
     /* GET /employees — HRD seluruhnya, KADIV hanya divisinya */
 
@@ -62,6 +67,13 @@ public function store(Request $request): JsonResponse
 {
     $data = $request->validate([
         'nip' => ['required', 'string', 'max:30', 'unique:employees,nip'],
+                'device_user_identifier' => [
+                'nullable',
+                'string',
+                'max:100',
+                'regex:/\A[0-9]{1,9}\z/',
+                'unique:employees,device_user_identifier',
+                ],
         'full_name' => ['required', 'string', 'max:255'],
         'email' => ['nullable', 'email', 'max:255'],
         'phone' => ['nullable', 'string', 'max:30'],
@@ -83,6 +95,7 @@ public function store(Request $request): JsonResponse
     $employee = DB::transaction(function () use ($data): Employee {
         $employee = Employee::query()->create([
             'nip' => $data['nip'],
+            'device_user_identifier' => $data['device_user_identifier'] ?? null,
             'full_name' => $data['full_name'],
             'email' => $data['email'] ?? null,
             'phone' => $data['phone'] ?? null,
@@ -94,7 +107,7 @@ public function store(Request $request): JsonResponse
         ]);
 
         // Employee ID dan histori dibuat melalui service resmi.
-        return app(\App\Services\EmployeeCodeGeneratorService::class)
+        return app(EmployeeCodeGeneratorService::class)
             ->assignOrChange(
                 employee: $employee,
                 officeId: (int) $data['office_id'],
@@ -103,7 +116,7 @@ public function store(Request $request): JsonResponse
                     ? (int) $data['unit_id']
                     : null,
                 reason: $data['reason'] ?? 'Pembuatan data karyawan',
-                createdBy: auth()->id(),
+                createdBy: request()->user()?->getAuthIdentifier(),
                 effectiveFrom: $data['effective_from'] ?? now()->toDateString(),
             );
     }, 3);
@@ -119,6 +132,156 @@ public function store(Request $request): JsonResponse
         'Karyawan berhasil ditambahkan'
     );
 }
+public function storeWithAccount(Request $request): JsonResponse
+{
+    // Email karyawan juga menjadi email login.
+    if (is_string($request->input('email'))) {
+        $request->merge([
+            'email' => mb_strtolower(trim($request->input('email'))),
+        ]);
+    }
+
+    $data = $request->validate([
+        // Data karyawan
+        'nip' => ['required', 'string', 'max:30', 'unique:employees,nip'],
+        'device_user_identifier' => [
+                                    'nullable',
+                                    'string',
+                                    'max:100',
+                                    'regex:/\A[0-9]{1,9}\z/',
+                                    'unique:employees,device_user_identifier',
+                                    ],
+        'full_name' => ['required', 'string', 'max:255'],
+        'email' => [
+            'required',
+            'email',
+            'max:255',
+            'unique:employees,email',
+            'unique:users,email',
+        ],
+        'phone' => ['nullable', 'string', 'max:30'],
+        'gender' => ['nullable', 'in:MALE,FEMALE'],
+        'join_date' => ['nullable', 'date'],
+
+        // Penempatan
+        'office_id' => ['required', 'integer', 'exists:offices,id'],
+        'division_id' => ['required', 'integer', 'exists:divisions,id'],
+        'unit_id' => ['nullable', 'integer', 'exists:units,id'],
+        'position_id' => ['nullable', 'integer', 'exists:positions,id'],
+        'manager_id' => ['nullable', 'integer', 'exists:employees,id'],
+
+        // Akun
+        'role' => ['required', 'in:KADIV,EMPLOYEE'],
+
+        // Histori Employee ID
+        'effective_from' => ['nullable', 'date'],
+        'reason' => ['nullable', 'string', 'max:500'],
+    ]);
+
+    $plainToken = Str::random(64);
+    $expiresAt = now()->addHours(
+        (int) config('auth.activation_ttl_hours', 72)
+    );
+
+    $temporaryPassword = Str::random(96);
+
+    // Seluruh data utama dibuat dalam satu transaksi.
+    $result = DB::transaction(function () use (
+        $data,
+        $request,
+        $plainToken,
+        $expiresAt,
+        $temporaryPassword
+    ): array {
+        // 1. Buat data karyawan.
+        $employee = Employee::query()->create([
+            'nip' => $data['nip'],
+            'device_user_identifier' => $data['device_user_identifier'] ?? null,
+            'full_name' => $data['full_name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'gender' => $data['gender'] ?? null,
+            'join_date' => $data['join_date'] ?? null,
+            'employment_status' => Employee::STATUS_ACTIVE,
+            'position_id' => $data['position_id'] ?? null,
+            'manager_id' => $data['manager_id'] ?? null,
+        ]);
+
+        // Generate Employee ID dan histori resmi
+        $employee = app(EmployeeCodeGeneratorService::class)
+            ->assignOrChange(
+                employee: $employee,
+                officeId: (int) $data['office_id'],
+                divisionId: (int) $data['division_id'],
+                unitId: isset($data['unit_id'])
+                    ? (int) $data['unit_id']
+                    : null,
+                reason: $data['reason'] ?? 'Pendaftaran karyawan baru',
+                createdBy: $request->user()->id,
+                effectiveFrom: $data['effective_from']
+                    ?? now()->toDateString(),
+            );
+
+        // Ambil role yang dipilih HRD
+        $role = Role::query()
+            ->where('name', $data['role'])
+            ->firstOrFail();
+
+        // Buat akun login dengan password sementara acak
+        $user = User::query()->create([
+            'employee_id' => $employee->id,
+            'name' => $employee->full_name,
+            'email' => $employee->email,
+            'password' => Hash::make($temporaryPassword),
+            'is_active' => true,
+            'must_change_password' => true,
+            'activation_token_hash' => hash('sha256', $plainToken),
+            'activation_expires_at' => $expiresAt,
+        ]);
+
+        // Tetapkan tepat satu role
+        $user->roles()->sync([$role->id]);
+
+        return [
+            'employee' => $employee,
+            'user' => $user,
+        ];
+    }, 3);
+
+    $employee = $result['employee'];
+    $user = $result['user'];
+
+    // Audit setelah transaksi berhasil
+    AuditService::created('EMPLOYEE', $employee, $request);
+    AuditService::created('USER', $user, $request);
+
+    // Gunakan mekanisme antrean perangkat yang sudah tersedia
+    if ($employee->isActive()) {
+        $this->devicePushes->queueFor($employee, 'UPSERT');
+    }
+
+    return $this->created([
+        'employee' => $employee->load([
+            'office',
+            'division',
+            'unit',
+            'position',
+            'employeeCodeHistories',
+        ]),
+        'user' => $user->load([
+            'roles',
+            'employee:id,nip,full_name,employee_code',
+        ]),
+        'activation' => [
+            'token' => $plainToken,
+            'expires_at' => $expiresAt->toIso8601String(),
+            'delivery' => 'MANUAL_HRD',
+            'note' => 'Token aktivasi hanya ditampilkan sekali. Bagikan melalui kanal internal yang aman.',
+        ],
+    ], 'Karyawan dan akun login berhasil dibuat.');
+}
+
+
 
 
 
@@ -150,6 +313,14 @@ public function update(Request $request, int $id): JsonResponse
 
     $data = $request->validate([
         'nip' => ['sometimes', 'required', 'string', 'max:30', 'unique:employees,nip,' . $id],
+        'device_user_identifier' => [
+                                    'sometimes',
+                                    'nullable',
+                                    'string',
+                                    'max:100',
+                                    'regex:/\A[0-9]{1,9}\z/',
+                                    'unique:employees,device_user_identifier,' . $employee->id,
+                                    ],
         'full_name' => ['sometimes', 'required', 'string', 'max:255'],
         'email' => ['sometimes', 'nullable', 'email', 'max:255'],
         'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
@@ -157,7 +328,7 @@ public function update(Request $request, int $id): JsonResponse
         'join_date' => ['sometimes', 'nullable', 'date'],
         'employment_status' => ['sometimes', 'in:ACTIVE,INACTIVE,RESIGNED'],
 
-        // Jika mengubah penempatan, ketiga kolom ini wajib dikirim.
+        // Jika mengubah penempatan, ketiga kolom ini wajib dikirim
         'office_id' => ['sometimes', 'required_with:division_id,unit_id', 'integer', 'exists:offices,id'],
         'division_id' => ['sometimes', 'required_with:office_id,unit_id', 'integer', 'exists:divisions,id'],
         'unit_id' => ['sometimes', 'nullable', 'integer', 'exists:units,id'],
@@ -176,7 +347,7 @@ public function update(Request $request, int $id): JsonResponse
         array_keys($data)
     ) !== [];
 
-    // Penempatan harus dikirim secara lengkap.
+    // Penempatan harus dikirim secara lengkap
     if ($hasPlacementChange) {
         foreach ($placementKeys as $field) {
             if (! array_key_exists($field, $data)) {
@@ -187,7 +358,7 @@ public function update(Request $request, int $id): JsonResponse
         }
     }
 
-    // Metadata histori hanya boleh digunakan saat mengubah penempatan.
+    // Metadata histori hanya boleh digunakan saat mengubah penempatan
     if (
         ! $hasPlacementChange
         && (
@@ -222,9 +393,10 @@ public function update(Request $request, int $id): JsonResponse
             ->lockForUpdate()
             ->findOrFail($employee->id);
 
-        // Hanya atribut dasar yang boleh diperbarui secara langsung.
+        // Hanya atribut dasar yang boleh diperbarui secara langsung
         $employeeFields = [
             'nip',
+            'device_user_identifier',
             'full_name',
             'email',
             'phone',
@@ -248,7 +420,7 @@ public function update(Request $request, int $id): JsonResponse
         // Perubahan penempatan harus melalui generator
         if ($hasPlacementChange) {
             $lockedEmployee = app(
-                \App\Services\EmployeeCodeGeneratorService::class
+                EmployeeCodeGeneratorService::class
             )->assignOrChange(
                 employee: $lockedEmployee,
                 officeId: (int) $data['office_id'],
@@ -257,7 +429,7 @@ public function update(Request $request, int $id): JsonResponse
                     ? (int) $data['unit_id']
                     : null,
                 reason: $data['reason'] ?? 'Perubahan penempatan karyawan',
-                createdBy: auth()->id(),
+                createdBy: request()->user()?->getAuthIdentifier(),
                 effectiveFrom: $data['effective_from'] ?? now()->toDateString(),
             );
         }
@@ -267,6 +439,7 @@ public function update(Request $request, int $id): JsonResponse
             array_key_exists('employment_status', $data)
             && $data['employment_status'] !== Employee::STATUS_ACTIVE
         ) {
+            /** @var User|null $user */
             $user = $lockedEmployee->user()
                 ->lockForUpdate()
                 ->first();
@@ -362,6 +535,14 @@ public function import(Request $request): JsonResponse
         'rows' => ['required', 'array', 'min:1', 'max:1000'],
 
         'rows.*.nip' => ['required', 'string', 'max:30', 'distinct'],
+        'rows.*.device_user_identifier' => [
+                                            'nullable',
+                                            'string',
+                                            'max:100',
+                                            'regex:/\A[0-9]{1,9}\z/',
+                                            'distinct',
+                                            'unique:employees,device_user_identifier',
+                                            ],
         'rows.*.full_name' => ['required', 'string', 'max:255'],
         'rows.*.email' => ['nullable', 'email', 'max:255'],
         'rows.*.phone' => ['nullable', 'string', 'max:30'],
@@ -418,6 +599,7 @@ public function import(Request $request): JsonResponse
             $employee = DB::transaction(function () use ($row): Employee {
                 $employee = Employee::query()->create([
                     'nip' => $row['nip'],
+                    'device_user_identifier' => $row['device_user_identifier'] ?? null,
                     'full_name' => $row['full_name'],
                     'email' => $row['email'] ?? null,
                     'phone' => $row['phone'] ?? null,
@@ -430,7 +612,7 @@ public function import(Request $request): JsonResponse
                 ]);
 
                 return app(
-                    \App\Services\EmployeeCodeGeneratorService::class
+                    EmployeeCodeGeneratorService::class
                 )->assignOrChange(
                     employee: $employee,
                     officeId: (int) $row['office_id'],
@@ -440,7 +622,7 @@ public function import(Request $request): JsonResponse
                         : null,
                     reason: $row['reason']
                         ?? 'Impor massal data karyawan',
-                    createdBy: auth()->id(),
+                    createdBy: request()->user()?->getAuthIdentifier(),
                     effectiveFrom: $row['effective_from']
                         ?? now()->toDateString(),
                 );

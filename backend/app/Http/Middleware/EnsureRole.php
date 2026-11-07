@@ -6,10 +6,8 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * Pemeriksaan role untuk endpoint
- * Pemakaian: ->middleware('role:HRD') atau ->middleware('role:HRD,KADIV')
- */
+/* Pemeriksaan role untuk endpoint
+  Pemakaian: ->middleware('role:HRD') atau ->middleware('role:HRD,KADIV') */
 class EnsureRole
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response

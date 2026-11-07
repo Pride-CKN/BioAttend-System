@@ -25,7 +25,7 @@ class AttendanceController extends Controller
         protected NotificationService $notifier,
     ) {}
 
-    /** GET /attendance/recap — rekap kehadiran periode (HRD / KADIV divisi). */
+    /* GET /attendance/recap — rekap kehadiran periode (HRD / KADIV divisi) */
     public function recap(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -66,7 +66,7 @@ class AttendanceController extends Controller
         ]);
     }
 
-    /** GET /attendance/my — riwayat kehadiran sendiri (Employee, BR-10). */
+    /* GET /attendance/my — riwayat kehadiran sendiri */
     public function my(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -120,7 +120,7 @@ class AttendanceController extends Controller
         return $this->success(['verified' => $updated], 'Record kehadiran berhasil diverifikasi');
     }
 
-    /** GET /attendance/raw-logs — log mentah pemindaian (HRD). */
+    /* GET /attendance/raw-logs — log mentah pemindaian */
     public function rawLogs(Request $request): JsonResponse
     {
         $query = AttendanceLog::query()
@@ -134,7 +134,7 @@ class AttendanceController extends Controller
         return $this->paginated($query->orderByDesc('scanned_at')->paginate($request->integer('per_page', 50)));
     }
 
-    /** POST /attendance/raw-logs/reprocess — proses ulang log gagal (202). */
+    /* POST /attendance/raw-logs/reprocess — proses ulang log gagal (202) */
     public function reprocess(): JsonResponse
     {
         $count = $this->processor->reprocessFailed();
@@ -142,10 +142,8 @@ class AttendanceController extends Controller
         return $this->accepted(['reprocessed' => $count], 'Proses ulang log dijalankan');
     }
 
-    /**
-     * POST /attendance/ingest — terima log pemindaian dari perangkat.
-     * Dipakai job sinkronisasi perangkat maupun pengujian.
-     */
+    /* POST /attendance/ingest — terima log pemindaian dari perangkat
+      Dipakai job sinkronisasi perangkat maupun pengujian */
     public function ingest(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -175,7 +173,7 @@ class AttendanceController extends Controller
         return $this->success($log, 'Log pemindaian diterima', $employeeId ? 200 : 202);
     }
 
-    /** POST /attendance/process — jalankan pemrosesan harian manual. */
+    /* POST /attendance/process — jalankan pemrosesan harian manual */
     public function process(Request $request): JsonResponse
     {
         $data = $request->validate(['work_date' => 'required|date']);
@@ -188,9 +186,7 @@ class AttendanceController extends Controller
         return $this->accepted($result, 'Pemrosesan kehadiran selesai');
     }
 
-    // ---------------------------------------------------------------
     // Koreksi absensi
-    // ---------------------------------------------------------------
 
     public function corrections(Request $request): JsonResponse
     {
@@ -215,7 +211,7 @@ class AttendanceController extends Controller
 
         $record = AttendanceRecord::findOrFail($data['attendance_record_id']);
 
-        // BR-10: karyawan hanya boleh mengajukan untuk dirinya sendiri
+        // karyawan hanya boleh mengajukan untuk dirinya sendiri
         $this->assertCanAccessEmployee($record->employee_id);
 
         $correction = AttendanceCorrection::create([
@@ -245,7 +241,7 @@ class AttendanceController extends Controller
         return $this->created($correction, 'Pengajuan koreksi berhasil diajukan');
     }
 
-    /** POST /attendance/corrections/{id}/approve */
+    /* POST /attendance/corrections/{id}/approve */
     public function approveCorrection(Request $request, int $id): JsonResponse
     {
         $correction = AttendanceCorrection::findOrFail($id);
@@ -254,7 +250,7 @@ class AttendanceController extends Controller
         $correction = DB::transaction(function () use ($correction, $request) {
             $updated = $this->approval->approve($correction, $request->user());
 
-            // Perubahan derived attendance hanya diterapkan setelah HRD memberi keputusan final.
+            // Perubahan derived attendance hanya diterapkan setelah HRD memberi keputusan final
             if ($updated->status === AttendanceCorrection::STATUS_APPROVED) {
                 $record = $updated->attendanceRecord()->lockForUpdate()->first();
 
@@ -276,7 +272,7 @@ class AttendanceController extends Controller
         return $this->success($correction->refresh(), 'Koreksi disetujui');
     }
 
-    /** POST /attendance/corrections/{id}/reject */
+    /* POST /attendance/corrections/{id}/reject */
     public function rejectCorrection(Request $request, int $id): JsonResponse
     {
         $correction = AttendanceCorrection::findOrFail($id);

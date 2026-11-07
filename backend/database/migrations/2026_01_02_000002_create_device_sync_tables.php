@@ -4,14 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/*Arsitektur sinkronisasi perangkat Semua tabel baru,
- tidak ada penghapusan atau perubahan data existing.
- */
+/* Arsitektur sinkronisasi perangkat Semua tabel baru,
+ tidak ada penghapusan atau perubahan data existing */
 return new class extends Migration
 {
     public function up(): void
     {
-        // Checkpoint per perangkat — hanya boleh maju setelah batch tersimpan.
+        // Checkpoint per perangkat — hanya boleh maju setelah batch tersimpan
         Schema::create('device_checkpoints', function (Blueprint $table) {
             $table->id();
             $table->foreignId('device_id')->constrained('devices')->cascadeOnDelete();
@@ -54,7 +53,7 @@ return new class extends Migration
             $table->index('correlation_id', 'dev_sync_hist_corr_idx');
         });
 
-        // Status push karyawan per perangkat (event-driven, bukan full push 15 menit).
+        // Status push karyawan per perangkat (event-driven, bukan full push 15 menit)
         Schema::create('device_employee_pushes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('device_id')->constrained('devices')->cascadeOnDelete();
@@ -71,7 +70,7 @@ return new class extends Migration
             $table->index(['status'], 'dev_emp_push_status_idx');
         });
 
-        // Warning EARLY_DEPARTURE — idempotency key mencegah notifikasi ganda.
+        // Warning EARLY_DEPARTURE — idempotency key mencegah notifikasi ganda
         Schema::create('attendance_warning_events', function (Blueprint $table) {
             $table->id();
             $table->foreignId('attendance_record_id')->constrained('attendance_records')->cascadeOnDelete();

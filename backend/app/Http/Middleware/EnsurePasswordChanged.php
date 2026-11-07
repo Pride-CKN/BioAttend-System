@@ -6,14 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * Akun baru (dibuat HRD) wajib mengganti kata sandi sementara sebelum boleh
- * mengakses modul lain / master prompt Bagian aktivasi akun
- *
- * Endpoint yang tetap diizinkan hanya yang memang dibutuhkan untuk menyelesaikan
- * proses ganti kata sandi. Respons 428 (Precondition Required) memudahkan SPA
- * mengarahkan pengguna ke halaman penggantian kata sandi.
- */
+/* Akun baru (dibuat HRD) wajib mengganti kata sandi sementara sebelum boleh
+  mengakses modul lain / master prompt Bagian aktivasi akun
+
+  Endpoint yang tetap diizinkan hanya yang memang dibutuhkan untuk menyelesaikan
+  proses ganti kata sandi. Respons 428 (Precondition Required) memudahkan SPA
+  mengarahkan pengguna ke halaman penggantian kata sandi */
 class EnsurePasswordChanged
 {
     private const ALLOWED = [

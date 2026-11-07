@@ -33,9 +33,7 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    /*
-      Relasi akun dengan data karyawan.
-     */
+    /* Relasi akun dengan data karyawan */
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
@@ -48,14 +46,12 @@ class User extends Authenticatable
         ->withTimestamps();
     }
 
-    /*
-      Satu akun hanya boleh memiliki satu role
+    /* Satu akun hanya boleh memiliki satu role
       Pembatas utamanya ditegakkan oleh UNIQUE(role_user.user_id)
-      di PostgreSQL
-     */
-/*
-  Mengambil nama satu-satunya role yang dimiliki akun.
- */
+      di PostgreSQL */
+
+
+/*  Mengambil nama satu-satunya role yang dimiliki akun */
 public function primaryRole(): ?string
 {
     if ($this->relationLoaded('roles')) {
@@ -65,9 +61,7 @@ public function primaryRole(): ?string
     return $this->roles()->value('roles.name');
 }
 
-    /*
-      Memeriksa apakah akun memiliki salah satu role yang diminta
-     */
+    /* Memeriksa apakah akun memiliki salah satu role yang diminta */
     public function hasRole(string ...$roles): bool
     {
         if ($roles === []) {
@@ -94,10 +88,8 @@ public function primaryRole(): ?string
         return $this->hasRole(Role::EMPLOYEE);
     }
 
-    /*
-      Mengambil ID divisi dari data karyawan pemilik akun
-      Null berarti akun tidak memiliki divisi
-     */
+    /* Mengambil ID divisi dari data karyawan pemilik akun
+       Null berarti akun tidak memiliki divisi */
     public function divisionId(): ?int
     {
         $divisionId = $this->employee?->division_id;

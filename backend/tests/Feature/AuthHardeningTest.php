@@ -11,13 +11,13 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 use Database\Seeders\RolePermissionSeeder;
 
-/**
- * Penguncian kontrak keamanan autentikasi (PRD 20.1 / 20.3 / 20.5 / 20.6).
- * Fokus: endpoint yang sebelumnya terdaftar tanpa method, kebijakan kata
- * sandi, scope sesi, dan kejujuran status CAPTCHA/email.
- *
- * Sengaja memakai token Sanctum nyata (bukan actingAs) supaya alur
- * pencabutan token dan currentAccessToken() diuji apa adanya.
+/*
+  Penguncian kontrak keamanan autentikasi
+  Fokus: endpoint yang sebelumnya terdaftar tanpa method, kebijakan kata
+  sandi, scope sesi, dan kejujuran status CAPTCHA/email.
+
+  Sengaja memakai token Sanctum nyata (bukan actingAs) supaya alur
+  pencabutan token dan currentAccessToken() diuji apa adanya.
  */
 class AuthHardeningTest extends TestCase
 {

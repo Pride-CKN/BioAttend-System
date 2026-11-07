@@ -21,12 +21,10 @@ use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 
-/*
-  CRUD generik master data
+/*CRUD generik master data
   Menangani: office, Unit, divisions, positions, shifts, holidays, leave-types, devices
 
-  BR-06: data tidak dihapus secara fisik — hapus = nonaktifkan (is_active = false)
- */
+  data tidak dihapus secara fisik — hapus = nonaktifkan (is_active = false)*/
 class MasterDataController extends Controller
 {
     /* Pemetaan resource -> [model, aturan validasi, kolom pencarian] */

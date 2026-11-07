@@ -14,15 +14,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Konfigurasi jam kerja 3 tingkat: Perusahaan › Divisi › Perorangan
- * Prioritas resolusi: EMPLOYEE › DIVISION › COMPANY.
- */
+/* Konfigurasi jam kerja 3 tingkat: Perusahaan › Divisi › Perorangan
+  Prioritas resolusi: EMPLOYEE › DIVISION › COMPANY */
 class WorkScheduleController extends Controller
 {
     public function __construct(protected ScheduleResolver $resolver) {}
 
-    /** GET /work-schedules/company */
+    /* GET /work-schedules/company */
     public function company(): JsonResponse
     {
         $config = WorkScheduleConfig::query()
@@ -34,7 +32,7 @@ class WorkScheduleController extends Controller
         return $this->success($config);
     }
 
-    /** PUT /work-schedules/company */
+    /* PUT /work-schedules/company */
     public function updateCompany(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -57,7 +55,7 @@ class WorkScheduleController extends Controller
         return $this->success($config, 'Konfigurasi jam kerja perusahaan diperbarui');
     }
 
-    /** GET /work-schedules/divisions/{id} */
+    /* GET /work-schedules/divisions/{id} */
     public function division(int $id): JsonResponse
     {
         $this->assertCanAccessDivision($id);
@@ -72,7 +70,7 @@ class WorkScheduleController extends Controller
         return $this->success($config);
     }
 
-    /** PUT /work-schedules/divisions/{id} */
+    /* PUT /work-schedules/divisions/{id} */
     public function updateDivision(Request $request, int $id): JsonResponse
     {
         $this->assertCanAccessDivision($id);
@@ -97,7 +95,7 @@ class WorkScheduleController extends Controller
         return $this->success($config, 'Konfigurasi jam kerja divisi diperbarui');
     }
 
-    /** GET /work-schedules/employees/{id} */
+    /* GET /work-schedules/employees/{id} */
     public function employee(int $id): JsonResponse
     {
         $this->assertCanAccessEmployee($id);
@@ -112,7 +110,7 @@ class WorkScheduleController extends Controller
         return $this->success($config);
     }
 
-    /** PUT /work-schedules/employees/{id} */
+    /* PUT /work-schedules/employees/{id} */
     public function updateEmployee(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -135,10 +133,8 @@ class WorkScheduleController extends Controller
         return $this->success($config, 'Konfigurasi jam kerja karyawan diperbarui');
     }
 
-    /**
-     * GET /work-schedules/resolve?employee_id=&date=
-     * Menampilkan jadwal aktif beserta tingkat yang dipakai.
-     */
+    /* GET /work-schedules/resolve?employee_id=&date=
+      Menampilkan jadwal aktif beserta tingkat yang dipakai */
     public function resolve(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -163,7 +159,7 @@ class WorkScheduleController extends Controller
         ]);
     }
 
-    /** POST /work-schedules/validate — deteksi bentrok sebelum disimpan. */
+    /* POST /work-schedules/validate — deteksi bentrok sebelum disimpan */
     public function validate(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -186,8 +182,9 @@ class WorkScheduleController extends Controller
                 'Rentang berlaku bentrok dengan konfigurasi yang sudah ada.',
                 ['conflict' => [
                     'id' => $conflict->id,
-                    'effective_from' => $conflict->effective_from->toDateString(),
-                    'effective_to' => $conflict->effective_to?->toDateString(),
+                    'effective_from' => Carbon::parse($conflict->effective_from)->toDateString(),
+                    'effective_to' => $conflict->effective_to
+                    ? Carbon::parse($conflict->effective_to)->toDateString(): null,
                 ]]
             );
         }
@@ -195,7 +192,7 @@ class WorkScheduleController extends Controller
         return $this->success(['valid' => true], 'Tidak ada bentrok rentang berlaku');
     }
 
-    /** GET /work-schedules/histories */
+    /* GET /work-schedules/histories */
     public function histories(Request $request): JsonResponse
     {
         $query = ScheduleChangeHistory::query()->with('config');
@@ -228,11 +225,10 @@ class WorkScheduleController extends Controller
         return $this->paginated($query->orderByDesc('created_at')->paginate(min(100, max(1, $request->integer('per_page', 20)))));
     }
 
-    // ---------------------------------------------------------------
-    // Penugasan jadwal harian (tabel schedules)
-    // ---------------------------------------------------------------
 
-    /** GET /schedules — daftar penugasan jadwal. */
+    // Penugasan jadwal harian (tabel schedules)
+
+    /* GET /schedules — daftar penugasan jadwal */
     public function index(Request $request): JsonResponse
     {
         $employeeIds = $this->employeesQuery()->pluck('id');
@@ -248,7 +244,7 @@ class WorkScheduleController extends Controller
         return $this->paginated($query->orderBy('work_date')->paginate($request->integer('per_page', 31)));
     }
 
-    /** GET /schedules/my — jadwal sendiri (Employee). */
+    /* GET /schedules/my — jadwal sendiri (Employee) */
     public function my(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -263,7 +259,7 @@ class WorkScheduleController extends Controller
         return $this->paginated($query->orderBy('work_date')->paginate($request->integer('per_page', 31)));
     }
 
-    /** POST /schedules/assign — tetapkan jadwal satu karyawan. */
+    /* POST /schedules/assign — tetapkan jadwal satu karyawan */
     public function assign(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -289,7 +285,7 @@ class WorkScheduleController extends Controller
         return $this->created($schedule->load('shift'), 'Jadwal berhasil ditetapkan');
     }
 
-    /** POST /schedules/bulk-assign — penugasan jadwal massal (202). */
+    /* POST /schedules/bulk-assign — penugasan jadwal massal (202) */
     public function bulkAssign(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -339,7 +335,7 @@ class WorkScheduleController extends Controller
         return $this->accepted(['assigned' => $assigned], 'Penugasan jadwal massal diproses');
     }
 
-    /** Simpan konfigurasi sekaligus catat riwayat perubahan */
+    /* Simpan konfigurasi sekaligus catat riwayat perubahan */
     protected function upsertConfig(string $scopeType, ?int $scopeId, array $data, Request $request): WorkScheduleConfig
     {
         return DB::transaction(function () use ($scopeType, $scopeId, $data, $request): WorkScheduleConfig {
@@ -403,7 +399,7 @@ class WorkScheduleController extends Controller
 
     protected function assertCanAccessDivision(int $divisionId): void
     {
-        $user = auth()->user();
+        $user = request()->user();
         abort_if(! $user->isHrd() && ! $user->isKadiv(), 403, 'Role tidak memiliki akses ke konfigurasi divisi.');
         if ($user->isKadiv()) {
             abort_if(! $user->divisionId() || (int) $user->divisionId() !== $divisionId, 403, 'Konfigurasi berada di luar divisi Anda.');
@@ -412,7 +408,7 @@ class WorkScheduleController extends Controller
 
     protected function assertScheduleScope(string $scopeType, ?int $scopeId): void
     {
-        $user = auth()->user();
+        $user = request()->user();
         if ($scopeType === WorkScheduleConfig::SCOPE_COMPANY) {
             abort_if(! $user->isHrd(), 403, 'Hanya HRD yang dapat mengubah atau memvalidasi jadwal perusahaan.');
             return;

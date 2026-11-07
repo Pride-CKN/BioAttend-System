@@ -7,6 +7,7 @@ use App\Models\Office;
 use App\Models\Unit;
 use App\Services\EmployeeCodeGeneratorService;
 use App\Models\Device;
+use App\Enums\DeviceStatus;
 use App\Models\Division;
 use App\Models\Employee;
 use App\Models\Holiday;
@@ -24,15 +25,13 @@ use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
-/**
- * Data contoh agar API bisa langsung dicoba.
- *
- * Berisi: struktur organisasi, shift, hari libur, jenis cuti, perangkat,
- * 12 karyawan + akun (HRD / KADIV / EMPLOYEE), dan 60 hari log absensi
- * yang sudah diproses menjadi attendance_records.
- *
- * Jalankan: php artisan db:seed --class=DemoDataSeeder
- */
+/* Data contoh agar API bisa langsung dicoba.
+
+  Berisi: struktur organisasi, shift, hari libur, jenis cuti, perangkat,
+  12 karyawan + akun (HRD / KADIV / EMPLOYEE), dan 60 hari log absensi
+  yang sudah diproses menjadi attendance_records.
+
+  Jalankan: php artisan db:seed --class=DemoDataSeeder */
 class DemoDataSeeder extends Seeder
 {
     protected const PASSWORD = 'password123';
@@ -64,14 +63,12 @@ class DemoDataSeeder extends Seeder
         $this->seedAttendance($employees, $shifts, $device, $leaveTypes, $approverId);
     }
 
-    // ------------------------------------------------------------------
     // Struktur organisasi
-    // ------------------------------------------------------------------
 
 protected function seedOrganization(): void
 {
     // Gunakan master organisasi baru:
-    // Office -> Division -> Unit.
+    // Office -> Division -> Unit
     $this->call(OrganizationSeeder::class);
 
     // Posisi/jabatan demo.
@@ -95,9 +92,7 @@ protected function seedOrganization(): void
 }
 
 
-    // ------------------------------------------------------------------
     // Shift
-    // ------------------------------------------------------------------
     protected function seedShifts(): array
     {
         $definitions = [
@@ -197,17 +192,15 @@ protected function seedOrganization(): void
                 'name'       => 'Fingerprint Gerbang Utama',
                 'model'      => 'F18',
                 'port'       => 4370,
-                'commkey'    => '12345',
+                'commkey_encrypted' => env('ZKTECO_DEMO_COMMKEY'),
                 'location'   => 'Gerbang Utama',
-                'status'     => Device::STATUS_ONLINE,
+                'status'     => DeviceStatus::Online,
                 'is_active'  => true,
             ]
         );
     }
 
-    // ------------------------------------------------------------------
     // Karyawan
-    // ------------------------------------------------------------------
 
 protected function seedEmployees(): array
 {
@@ -281,6 +274,7 @@ protected function seedEmployees(): array
             [
                 'full_name' => $name,
                 'email' => $email,
+                'device_user_identifier' => $nip,
                 'phone' => '0812' . mt_rand(10000000, 99999999),
                 'gender' => mt_rand(0, 1) ? 'MALE' : 'FEMALE',
                 'join_date' => now()
@@ -292,10 +286,8 @@ protected function seedEmployees(): array
             ]
         );
 
-        /*
-         * Employee ID tidak boleh diam-diam diganti saat seeding ulang.
-         * Jika sudah punya kode, penempatan harus tetap sama.
-         */
+        /* Employee ID tidak boleh diam-diam diganti saat seeding ulang.
+          Jika sudah punya kode, penempatan harus tetap sama */
         if ($employee->employee_code !== null) {
             $samePlacement =
                 (int) $employee->office_id === (int) $office->id
@@ -309,10 +301,8 @@ protected function seedEmployees(): array
                 );
             }
         } else {
-            /*
-             * Pembuatan Employee ID awal beserta histori.
-             * Tanggal efektif menggunakan tanggal seeding.
-             */
+            /* Pembuatan Employee ID awal beserta histori
+              Tanggal efektif menggunakan tanggal seeding */
             $employee = $generator->assignOrChange(
                 employee: $employee,
                 officeId: (int) $office->id,
@@ -357,18 +347,19 @@ protected function seedUsers(array $employees): void
                     'name' => $employee->full_name,
                     'password' => Hash::make(self::PASSWORD),
                     'is_active' => true,
+                    'must_change_password' => true,
                 ]
-            );
+);
 
-            // Pastikan akun tidak terhubung ke karyawan yang berbeda.
+            // Pastikan akun tidak terhubung ke karyawan yang berbeda
             if ((int) $user->employee_id !== (int) $employee->id) {
                 throw new \RuntimeException(
                     "Akun {$user->email} sudah terhubung dengan karyawan lain."
                 );
             }
 
-            // Pastikan tepat satu role terpasang.
-            // Role lama diganti, bukan ditambahkan.
+            // Pastikan tepat satu role terpasang
+            // Role lama diganti, bukan ditambahkan
             $user->roles()->sync([$role->id]);
         }, 3);
     }
@@ -403,9 +394,7 @@ protected function seedUsers(array $employees): void
         }
     }
 
-    // ------------------------------------------------------------------
     // 60 hari log absensi
-    // ------------------------------------------------------------------
     protected function seedAttendance(
         array $employees,
         array $shifts,
@@ -444,7 +433,7 @@ protected function seedUsers(array $employees): void
                     continue;
                 }
 
-                // 6% cuti yang sudah disetujui -> tidak jadi alpha (PRD 8.2)
+                // 6% cuti yang sudah disetujui -> tidak jadi alpha
                 if ($roll <= 14) {
                     LeaveRequest::query()->firstOrCreate(
                         [
@@ -472,34 +461,80 @@ protected function seedUsers(array $employees): void
                 // 12% terlambat
                 $lateMinutes = $roll <= 26 ? mt_rand(20, 90) : mt_rand(0, 8);
 
-                $checkIn = $date->copy()->setTime(8, 0)->addMinutes($lateMinutes)->addSeconds(mt_rand(0, 59));
+$checkIn = $date->copy()->setTime(8, 0)->addMinutes($lateMinutes)->addSeconds(mt_rand(0, 59));
 
-                // 10% pulang cepat
-                $earlyMinutes = $roll >= 90 ? mt_rand(30, 120) : 0;
-                $checkOut = $date->copy()->setTime(17, 0)->subMinutes($earlyMinutes)->addSeconds(mt_rand(0, 59));
+// 10% pulang cepat
+$earlyMinutes = $roll >= 90 ? mt_rand(30, 120) : 0;
+$checkOut = $date->copy()->setTime(17, 0)->subMinutes($earlyMinutes)->addSeconds(mt_rand(0, 59));
 
-                // 3% tidak lengkap (lupa check-out)
-                $skipCheckOut = $roll >= 97;
+// 3% tidak lengkap (lupa check-out)
+$skipCheckOut = $roll >= 97;
 
-                AttendanceLog::query()->create([
-                    'device_id'         => $device->id,
-                    'employee_id'       => $employee->id,
-                    'scanned_at'        => $checkIn,
-                    'scan_type'         => null,
-                    'raw_payload'       => ['source' => 'seed', 'nip' => $employee->nip],
-                    'processing_status' => AttendanceLog::STATUS_PENDING,
-                ]);
+// CHECK-IN
+$checkInPayload = [
+    'source' => 'seed',
+    'employee_code' => $employee->employee_code,
+];
 
-                if (! $skipCheckOut) {
-                    AttendanceLog::query()->create([
-                        'device_id'         => $device->id,
-                        'employee_id'       => $employee->id,
-                        'scanned_at'        => $checkOut,
-                        'scan_type'         => null,
-                        'raw_payload'       => ['source' => 'seed', 'nip' => $employee->nip],
-                        'processing_status' => AttendanceLog::STATUS_PENDING,
-                    ]);
-                }
+$checkInDeviceLogId = sprintf(
+    'seed-%d-%s-in',
+    $employee->id,
+    $date->format('Ymd')
+);
+
+$checkInDeviceUserIdentifier = $employee->device_user_identifier;
+
+AttendanceLog::query()->create([
+    'device_id' => $device->id,
+    'employee_id' => $employee->id,
+    'device_user_identifier' => $checkInDeviceUserIdentifier,
+    'device_log_id' => $checkInDeviceLogId,
+    'fingerprint' => AttendanceLog::fingerprintFor(
+        $device->id,
+        $checkInDeviceLogId,
+        $checkInDeviceUserIdentifier,
+        $checkIn->toIso8601String(),
+        $checkInPayload
+    ),
+    'scanned_at' => $checkIn,
+    'scan_type' => null,
+    'raw_payload' => $checkInPayload,
+    'processing_status' => AttendanceLog::STATUS_PENDING,
+]);
+
+// CHECK-OUT
+if (! $skipCheckOut) {
+    $checkOutPayload = [
+        'source' => 'seed',
+        'employee_code' => $employee->employee_code,
+    ];
+
+    $checkOutDeviceLogId = sprintf(
+        'seed-%d-%s-out',
+        $employee->id,
+        $date->format('Ymd')
+    );
+
+    $checkOutDeviceUserIdentifier = $employee->device_user_identifier;
+
+    AttendanceLog::query()->create([
+        'device_id' => $device->id,
+        'employee_id' => $employee->id,
+        'device_user_identifier' => $checkOutDeviceUserIdentifier,
+        'device_log_id' => $checkOutDeviceLogId,
+        'fingerprint' => AttendanceLog::fingerprintFor(
+            $device->id,
+            $checkOutDeviceLogId,
+            $checkOutDeviceUserIdentifier,
+            $checkOut->toIso8601String(),
+            $checkOutPayload
+        ),
+        'scanned_at' => $checkOut,
+        'scan_type' => null,
+        'raw_payload' => $checkOutPayload,
+        'processing_status' => AttendanceLog::STATUS_PENDING,
+    ]);
+}
             }
         }
 

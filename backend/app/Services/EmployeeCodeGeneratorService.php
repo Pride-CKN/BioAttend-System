@@ -13,10 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class EmployeeCodeGeneratorService
 {
-    /*
-      Membuat Employee ID baru atau menggantinya
-      ketika penempatan karyawan berubah.
-     */
+    /* Membuat Employee ID baru atau menggantinya
+      ketika penempatan karyawan berubah */
     public function assignOrChange(
         Employee $employee,
         int $officeId,
@@ -35,13 +33,13 @@ class EmployeeCodeGeneratorService
             $createdBy,
             $effectiveFrom
         ): Employee {
-            // Kunci employee.
+            // Kunci employee
             $employee = Employee::query()
                 ->lockForUpdate()
                 ->findOrFail($employee->id);
 
             // Kunci master kantor untuk serialisasi
-            // pembuatan kode pada kantor yang sama.
+            // pembuatan kode pada kantor yang sama
             $office = Office::query()
                 ->lockForUpdate()
                 ->findOrFail($officeId);
@@ -58,7 +56,7 @@ class EmployeeCodeGeneratorService
                     ->findOrFail($unitId);
             }
 
-            // Validasi master organisasi.
+            // Validasi master organisasi
             if (! $office->is_active) {
                 throw ValidationException::withMessages([
                     'office_id' => 'Kantor yang dipilih sedang tidak aktif.',
@@ -77,13 +75,20 @@ class EmployeeCodeGeneratorService
                 ]);
             }
 
-            if ($division->id < 1 || $division->id > 9) {
+                        $rawDivisionDigit = $division->getRawOriginal('employee_code_digit');
+            $divisionDigit = filter_var($rawDivisionDigit, FILTER_VALIDATE_INT);
+
+            if (
+                $divisionDigit === false
+                || $divisionDigit < 1
+                || $divisionDigit > 9
+            ) {
                 throw ValidationException::withMessages([
-                    'division_id' => 'ID divisi harus berada pada rentang 1 sampai 9.',
+                    'division_id' => 'Digit Employee ID divisi belum dikonfigurasi dengan benar.',
                 ]);
             }
 
-            // Tentukan digit unit.
+            // Tentukan digit unit
             $unitDigit = '0';
 
             if ($unit !== null) {
@@ -99,17 +104,20 @@ class EmployeeCodeGeneratorService
                     ]);
                 }
 
+                $rawUnitDigit = $unit->getRawOriginal('employee_code_digit');
+                $validatedUnitDigit = filter_var($rawUnitDigit, FILTER_VALIDATE_INT);
+
                 if (
-                    $unit->employee_code_digit === null
-                    || $unit->employee_code_digit < 1
-                    || $unit->employee_code_digit > 9
+                    $validatedUnitDigit === false
+                    || $validatedUnitDigit < 1
+                    || $validatedUnitDigit > 9
                 ) {
                     throw ValidationException::withMessages([
                         'unit_id' => 'Digit Employee ID unit belum dikonfigurasi.',
                     ]);
                 }
 
-                $unitDigit = (string) $unit->employee_code_digit;
+                $unitDigit = (string) $validatedUnitDigit;
             } else {
                 $hasUnits = Unit::query()
                     ->where('division_id', $division->id)
@@ -122,7 +130,7 @@ class EmployeeCodeGeneratorService
                 }
             }
 
-            // Validasi tanggal efektif.
+            // Validasi tanggal efektif
             try {
                 $date = $effectiveFrom !== null
                     ? CarbonImmutable::parse($effectiveFrom)->startOfDay()
@@ -135,7 +143,7 @@ class EmployeeCodeGeneratorService
 
             $dateString = $date->toDateString();
 
-            // Periksa histori yang sedang aktif.
+            // Periksa histori yang sedang aktif
             $activeHistories = EmployeeCodeHistory::query()
                 ->where('employee_id', $employee->id)
                 ->whereNull('effective_to')
@@ -170,7 +178,7 @@ class EmployeeCodeGeneratorService
                 ]);
             }
 
-            // Periksa apakah penempatan berubah.
+            // Periksa apakah penempatan berubah
             $samePlacement =
                 (int) $employee->office_id === (int) $office->id
                 && (int) $employee->division_id === (int) $division->id
@@ -185,13 +193,13 @@ class EmployeeCodeGeneratorService
                 ]);
             }
 
-            // Bentuk prefix Employee ID.
+            // Bentuk prefix Employee ID
             $prefix = (string) $office->code
-                . (string) $division->id
-                . $unitDigit;
+    . (string) $divisionDigit
+    . $unitDigit;
 
-            // Ambil kode yang pernah atau sedang digunakan.
-            // Kode historis tidak boleh digunakan kembali.
+            // Ambil kode yang pernah atau sedang digunakan
+            // Kode historis tidak boleh digunakan kembali
             $historyCodes = EmployeeCodeHistory::query()
                 ->where('employee_code', 'like', $prefix . '%')
                 ->pluck('employee_code');
@@ -231,7 +239,7 @@ class EmployeeCodeGeneratorService
                 STR_PAD_LEFT
             );
 
-            // Tutup hanya histori Employee ID yang sedang aktif.
+            // Tutup hanya histori Employee ID yang sedang aktif
             if ($employee->employee_code !== null) {
                 $oldHistory = $activeHistories->first();
 
@@ -240,7 +248,7 @@ class EmployeeCodeGeneratorService
                 ]);
             }
 
-            // Simpan penempatan dan Employee ID baru.
+            // Simpan penempatan dan Employee ID baru
             $employee->forceFill([
                 'office_id' => $office->id,
                 'division_id' => $division->id,
@@ -248,7 +256,7 @@ class EmployeeCodeGeneratorService
                 'employee_code' => $newCode,
             ])->save();
 
-            // Simpan histori Employee ID baru.
+            // Simpan histori Employee ID baru
             EmployeeCodeHistory::query()->create([
                 'employee_id' => $employee->id,
                 'employee_code' => $newCode,

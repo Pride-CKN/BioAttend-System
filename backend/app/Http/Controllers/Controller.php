@@ -11,26 +11,19 @@ abstract class Controller
 {
     use ApiResponse, AuthorizesRequests;
 
-    /*
-      Batasi data sesuai scope role:
+    /* Batasi data sesuai scope role:
         HRD      -> seluruh karyawan
         KADIV    -> hanya divisinya
-        Employee -> hanya dirinya sendiri
-     */
+        Employee -> hanya dirinya sendiri */
 
-/*
-  Batasi data sesuai scope role:
-    HRD      -> seluruh karyawan
-    KADIV    -> hanya karyawan dalam divisinya
-    EMPLOYEE -> hanya dirinya sendiri
- */
+
 protected function scopeEmployees(
     Builder $query,
     ?int $explicitEmployeeId = null
 ): Builder {
-    $user = auth()->user();
+    $user = request()->user();
 
-    abort_unless($user, 401, 'Tidak terotentikasi.');
+    abort_unless($user !== null, 401, 'Tidak terotentikasi.');
 
     if ($user->isHrd()) {
         return $explicitEmployeeId !== null
@@ -76,12 +69,12 @@ protected function scopeEmployees(
     abort(403, 'Akun tidak memiliki role yang valid.');
 }
 
-/* Pastikan pengguna boleh mengakses data karyawan tertentu. */
+/* Pastikan pengguna boleh mengakses data karyawan tertentu */
 protected function assertCanAccessEmployee(int $employeeId): void
 {
-    $user = auth()->user();
+    $user = request()->user();
 
-    abort_unless($user, 401, 'Tidak terotentikasi.');
+    abort_unless($user !== null, 401, 'Tidak terotentikasi.');
 
     if ($user->isHrd()) {
         return;
@@ -122,7 +115,7 @@ protected function assertCanAccessEmployee(int $employeeId): void
 }
 
 
-    /* Query dasar karyawan yang sudah dibatasi scope. */
+    /* Query dasar karyawan yang sudah dibatasi scope */
     protected function employeesQuery(): Builder
     {
         return $this->scopeEmployees(Employee::query());

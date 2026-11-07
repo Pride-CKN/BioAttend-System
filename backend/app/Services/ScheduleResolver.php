@@ -8,26 +8,22 @@ use App\Models\Shift;
 use App\Models\WorkScheduleConfig;
 use Carbon\Carbon;
 
-/*
-  Resolusi jadwal aktif karyawan
+/* Resolusi jadwal aktif karyawan
 
   Prioritas: EMPLOYEE (perorangan) › DIVISION › COMPANY
-  Hari libur mengesampingkan kewajiban hadir
- */
+  Hari libur mengesampingkan kewajiban hadir */
 class ScheduleResolver
 {
     /* Hari kerja default bila konfigurasi tidak mengaturnya: Senin..Jumat */
     public const DEFAULT_WORK_DAYS = [1, 2, 3, 4, 5];
 
-    /*
-      Hasil resolusi:
+    /* Hasil resolusi:
        - shift          : objek Shift aktif (null bila tidak ada)
        - scope          : EMPLOYEE / DIVISION / COMPANY / NONE
        - late_tolerance : menit toleransi keterlambatan
        - work_days      : hari kerja efektif
        - is_holiday     : tanggal tersebut hari libur
-       - is_work_day    : tanggal tersebut wajib hadir
-     */
+       - is_work_day    : tanggal tersebut wajib hadir  */
     public function resolve(Employee $employee, string|Carbon $date): array
     {
         $date = $date instanceof Carbon ? $date->toDateString() : $date;
@@ -62,7 +58,7 @@ class ScheduleResolver
         ];
     }
 
-    /* Ambil konfigurasi berjenjang yang masih berlaku pada tanggal tersebut. */
+    /* Ambil konfigurasi berjenjang yang masih berlaku pada tanggal tersebut */
     protected function resolveConfig(Employee $employee, string $date): ?WorkScheduleConfig
     {
         // 1. Perorangan (prioritas tertinggi)
@@ -81,7 +77,7 @@ class ScheduleResolver
             return $config;
         }
 
-        // 2. Divisi
+        // Divisi
         if ($employee->division_id) {
             $config = WorkScheduleConfig::query()
                 ->where('scope_type', WorkScheduleConfig::SCOPE_DIVISION)
@@ -99,7 +95,7 @@ class ScheduleResolver
             }
         }
 
-        // 3. Perusahaan
+        // Perusahaan
         return WorkScheduleConfig::query()
             ->where('scope_type', WorkScheduleConfig::SCOPE_COMPANY)
             ->where('is_active', true)
@@ -134,10 +130,8 @@ public function isHoliday(string $date): bool
         return in_array(Carbon::parse($date)->dayOfWeekIso, $workDays, true);
     }
 
-    /*
-      Deteksi bentrok rentang berlaku pada tingkat yang sama
-      Mengembalikan rentang yang bentrok atau null bila aman
-     */
+    /* Deteksi bentrok rentang berlaku pada tingkat yang sama
+      Mengembalikan rentang yang bentrok atau null bila aman */
     public function detectConflict(
         string $scopeType,
         ?int $scopeId,
@@ -156,7 +150,7 @@ public function isHoliday(string $date): bool
             })
             ->where('is_active', true)
             ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
-            // Rentang A dan B overlap jika A mulai <= B selesai dan A selesai >= B mulai.
+            // Rentang A dan B overlap jika A mulai <= B selesai dan A selesai >= B mulai
             ->whereDate('effective_from', '<=', $end)
             ->where(function ($query) use ($effectiveFrom) {
                 $query->whereNull('effective_to')

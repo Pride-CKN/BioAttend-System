@@ -6,13 +6,11 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * Header keamanan untuk respons API
- *
- * API murni JSON: CSP dikunci ke 'none' dan frame-ancestors 'none' karena
- * tidak ada HTML yang dirender oleh backend. HSTS hanya dipaksa pada HTTPS /
- * production agar tidak mengganggu pengembangan lokal via http://.
- */
+/* Header keamanan untuk respons API
+
+  API murni JSON: CSP dikunci ke 'none' dan frame-ancestors 'none' karena
+  tidak ada HTML yang dirender oleh backend. HSTS hanya dipaksa pada HTTPS /
+  production agar tidak mengganggu pengembangan lokal via http://. */
 class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response

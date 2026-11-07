@@ -7,14 +7,12 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
-/**
- * Kebijakan kata sandi
- *
- * - Minimal 8 karakter, mengandung huruf DAN angka
- * - Tidak boleh memakai ulang 5 kata sandi terakhir
- * - Riwayat menyimpan HASH bcrypt, bukan plaintext. Tabel ini berbeda dari
- *   audit_logs: audit log justru menyamarkan segala hal bernuansa password
- */
+/* Kebijakan kata sandi
+
+  - Minimal 8 karakter, mengandung huruf DAN angka
+  - Tidak boleh memakai ulang 5 kata sandi terakhir
+  - Riwayat menyimpan HASH bcrypt, bukan plaintext. Tabel ini berbeda dari
+    audit_logs: audit log justru menyamarkan segala hal bernuansa password */
 class PasswordPolicy
 {
     public const HISTORY_LIMIT = 5;
@@ -35,7 +33,7 @@ class PasswordPolicy
         return $rules;
     }
 
-    /** Benarkah kata sandi ini pernah dipakai (hash saat ini + riwayat)? */
+    /* Benarkah kata sandi ini pernah dipakai (hash saat ini + riwayat)? */
     public static function isReused(User $user, string $plain): bool
     {
         if ($user->password && Hash::check($plain, $user->password)) {
@@ -58,10 +56,8 @@ class PasswordPolicy
         return false;
     }
 
-    /**
-     * Simpan hash lama SEBELUM kata sandi diganti, lalu pangkas riwayat agar
-     * hanya HISTORY_LIMIT hash terakhir yang tersimpan (data minimisasi).
-     */
+    /* Simpan hash lama SEBELUM kata sandi diganti, lalu pangkas riwayat agar
+      hanya HISTORY_LIMIT hash terakhir yang tersimpan (data minimisasi) */
     public static function rememberCurrent(User $user): void
     {
         if (! $user->password) {

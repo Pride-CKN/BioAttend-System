@@ -12,13 +12,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-/**
- * AI HR Attendance Agent
- *
- * Bersifat READ-ONLY dan hanya menjawab pertanyaan agregat kehadiran.
- * Endpoint siap disambungkan ke LLM eksternal kalo gak ada LLM yang
- * dikonfigurasi, agen menjawab berbasis aturan bawaan
- */
+/*AI HR Attendance Agent
+
+  Bersifat READ-ONLY dan hanya menjawab pertanyaan agregat kehadiran,
+  Endpoint siap disambungkan ke LLM eksternal kalo gak ada LLM yang
+  dikonfigurasi, agen menjawab berbasis aturan bawaan*/
 class AiController extends Controller
 {
     public function chat(Request $request): JsonResponse
@@ -31,9 +29,9 @@ class AiController extends Controller
         $user = $request->user();
 
         $conversation = $data['conversation_id'] ?? null
-            ? AiConversation::where('user_id', $user->id)->findOrFail($data['conversation_id'])
+            ? AiConversation::where('user_id', $user->getAuthIdentifier())->findOrFail($data['conversation_id'])
             : AiConversation::create([
-                'user_id' => $user->id,
+                'user_id' => $user->getAuthIdentifier(),
                 'title' => Str::limit($data['message'], 60),
             ]);
 
@@ -43,7 +41,7 @@ class AiController extends Controller
             'content' => $data['message'],
         ]);
 
-        [$answer, $toolName, $labels] = $this->answer($data['message'], $user, $conversation);
+        [$answer, $toolName, $labels] = $this->answer($data['message'], $conversation);
 
         AiMessage::create([
             'conversation_id' => $conversation->id,
@@ -64,23 +62,29 @@ class AiController extends Controller
     {
         $query = AiConversation::query()
             ->withCount('messages')
-            ->where('user_id', $request->user()->id);
+            ->where('user_id', $request->user()->getAuthIdentifier());
+
 
         return $this->paginated($query->orderByDesc('created_at')->paginate($request->integer('per_page', 20)));
     }
 
-    public function messages(int $id): JsonResponse
-    {
-        $conversation = AiConversation::where('user_id', auth()->id())->findOrFail($id);
+    public function messages(Request $request, int $id): JsonResponse
+        {
+            $conversation = AiConversation::query()
+            ->where('user_id', $request->user()->getAuthIdentifier())
+            ->findOrFail($id);
 
-        return $this->success($conversation->messages()->orderBy('id')->get());
-    }
+            return $this->success(
+            $conversation->messages()->orderBy('id')->get()
+            );
+        }
 
-    /**
-     * jawaban berbasis aturan (fallback tanpa LLM)
-     * cuma baca data tidak pernah menulis selain log percakapan
-     */
-    protected function answer(string $message, $user, AiConversation $conversation): array
+    /* jawaban berbasis aturan (fallback tanpa LLM)
+      cuma baca data tidak pernah menulis selain log percakapan */
+    protected function answer(
+        string $message,
+        AiConversation $conversation
+        ): array
     {
         $text = mb_strtolower($message);
         $tool = 'none';

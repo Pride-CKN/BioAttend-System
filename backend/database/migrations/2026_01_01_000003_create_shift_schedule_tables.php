@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /*Shift, penugasan jadwal, hari libur, dan konfigurasi jam kerja 3 tingkat
+    /* Shift, penugasan jadwal, hari libur, dan konfigurasi jam kerja 3 tingkat
       (shifts, schedules, holidays, work_schedule_configs, schedule_change_histories) */
     public function up(): void
     {

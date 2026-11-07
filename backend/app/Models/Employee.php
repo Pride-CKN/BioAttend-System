@@ -6,9 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 
 class Employee extends Model
 {
+    use HasFactory;
+    
+    /* karyawan tidak dihapus fisik, cukup dinonaktifkan */
     public const STATUS_ACTIVE = 'ACTIVE';
     public const STATUS_INACTIVE = 'INACTIVE';
     public const STATUS_RESIGNED = 'RESIGNED';
@@ -33,9 +39,12 @@ class Employee extends Model
 
     protected function casts(): array
     {
-        return [
-            'join_date' => 'date',
-        ];
+    return [
+        'join_date' => 'date',
+        'office_id' => 'integer',
+        'division_id' => 'integer',
+        'unit_id' => 'integer',
+    ];
     }
 
     public function office(): BelongsTo
@@ -45,7 +54,7 @@ class Employee extends Model
 
     public function division(): BelongsTo
     {
-        return $this->belongsTo(Division::class);
+    return $this->belongsTo(Division::class, 'division_id');
     }
 
     public function unit(): BelongsTo

@@ -6,10 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /*Deduction & PPh
+    /* Deduction & PPh
      
       ATURAN ALPHA (permintaan eksplisit pengguna):
-        - alpha (tanpa keterangan) dikenakan potongan 4% LANGSUNG sejak kejadian pertama.
+        - alpha (tanpa keterangan) dikenakan potongan 4% LANGSUNG sejak kejadian pertama
         - alpha TIDAK mendapat jatah toleransi
           Kolom alpha_events / alpha_rate / alpha_percentage menyimpan jejaknya*/
     public function up(): void

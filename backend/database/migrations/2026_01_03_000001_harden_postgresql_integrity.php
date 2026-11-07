@@ -3,8 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-/*Hardening PostgreSQL buat kebutuhan production. Migrasi ini sifatnya cuma nambahin aturan,
-constraint, index, dan proteksi data supaya lebih aman, tanpa menghapus data yang sudah ada*/
+/* Hardening PostgreSQL buat kebutuhan production. Migrasi ini sifatnya cuma nambahin aturan,
+constraint, index, dan proteksi data supaya lebih aman, tanpa menghapus data yang sudah ada */
 return new class extends Migration
 {
     public function up(): void

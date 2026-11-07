@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Riwayat HASH password. Tidak pernah menyimpan password plaintext. */
+/* Riwayat HASH password. Tidak pernah menyimpan password plaintext */
 class PasswordHistory extends Model
 {
     public $timestamps = false;

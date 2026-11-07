@@ -10,21 +10,17 @@ use App\Models\PermissionRequest;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
 
-/*
-  PULANG CEPAT = WARNING SAJA, TANPA POTONGAN
+/* PULANG CEPAT = WARNING SAJA, TANPA POTONGAN
 
   Service ini TIDAK pernah menulis ke deduction_events / deduction_records
   Satu kejadian logis -> satu baris attendance_warning_events (unique key),
-  sehingga reprocessing attendance tidak mengirim notifikasi ganda
- */
+  sehingga reprocessing attendance tidak mengirim notifikasi ganda */
 class EarlyDepartureService
 {
     public function __construct(protected \App\Services\NotificationService $notifications) {}
 
-    /*
-      Catat warning bila record memenuhi syarat. Mengembalikan null bila
-      tidak ada pelanggaran atau ada pengecualian yang sah
-     */
+    /* Catat warning bila record memenuhi syarat. Mengembalikan null bila
+      tidak ada pelanggaran atau ada pengecualian yang sah  */
     public function handle(AttendanceRecord $record): ?AttendanceWarningEvent
     {
         if (! $record->hasViolation(AttendanceRecord::EVENT_EARLY_DEPARTURE)) {
@@ -78,7 +74,7 @@ class EarlyDepartureService
                 'event_status' => AttendanceWarningEvent::STATUS_ACTIVE,
                 'payload' => [
                     'employee_name' => $employee?->full_name,
-                    'nip' => $employee?->nip,
+                    'employee_code' => $employee?->employee_code ?? $employee?->nip,
                     'office' => $employee?->office?->name,
                     'unit' => $employee?->unit?->name,
                     'division' => $employee?->division?->name,
