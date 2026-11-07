@@ -1,6 +1,6 @@
 # Isi Backend BioAttend
 
-Halo guys! Ini ringkasan isi backend yang sekarang ada di branch `integration/backend-hardened`. Baca ini dulu sebelum mulai nambah fitur, biar kita nggak bikin ulang sesuatu yang sebenarnya sudah ada.
+Ini ringkasan isi backend yang sekarang ada di branch `integration/backend-hardened`. Baca ini dulu sebelum mulai nambah fitur, biar kita nggak bikin ulang sesuatu yang sebenarnya sudah ada.
 
 > Catatan: cek implementasi dan test-nya sebelum dipakai
 
