@@ -8,7 +8,7 @@
 > **Authentication:** Laravel Sanctum Bearer Token  
 > **Versi dokumen:** 1.0-draft
 
-> Anggap aja ini contekan pas ngerjain frontend. Kalau ada bagian yang ditandai masih perlu dicek, jangan asal nebak payload-nya—kita cocokin dulu ke controller.
+> Kalau ada bagian yang ditandai masih perlu dicek, jangan asal nebak payload-nya—kita cocokin dulu ke controller
 
 ---
 
@@ -24,7 +24,7 @@ Accept: application/json
 Content-Type: application/json
 ```
 
-Kalau request-nya `multipart/form-data`, jangan tambahkan `Content-Type: application/json`.
+Kalau request-nya `multipart/form-data`, jangan tambahkan `Content-Type: application/json`
 
 ### 1.2 Bentuk response kalau berhasil
 
@@ -40,9 +40,9 @@ Bentuk respons sukses biasanya seperti ini:
 
 Kode status yang bakal sering ditemui:
 
-- `200 OK`: request berhasil.
-- `201 Created`: data berhasil dibuat.
-- `202 Accepted`: request diterima/diproses secara asynchronous atau batch.
+- `200 OK`: request berhasil
+- `201 Created`: data berhasil dibuat
+- `202 Accepted`: request diterima/diproses secara asynchronous atau batch
 
 Respons pagination:
 
@@ -62,7 +62,7 @@ Respons pagination:
 }
 ```
 
-`meta` cuma muncul di endpoint yang pakai pagination.
+`meta` cuma muncul di endpoint yang pakai pagination
 
 ### 1.3 Kalau request gagal
 
@@ -80,29 +80,29 @@ Bagian `errors` bisa saja nggak ada kalau error-nya memang nggak punya rincian v
 
 Kalau ketemu kode error di bawah, tinggal sesuaikan respons di frontend:
 
-- `401`: belum login/token tidak valid atau kedaluwarsa.
-- `403`: akun ini nggak punya akses ke aksi atau data yang diminta.
-- `404`: data atau sesi yang dicari nggak ketemu.
-- `409`: ada proses yang bentrok, atau status datanya belum cocok untuk aksi tersebut.
-- `422`: ada isian yang nggak lolos validasi atau aturan sistem.
-- `429`: request terlalu sering atau CAPTCHA perlu dicek.
-- `503`: layanan yang dibutuhkan belum siap atau belum disetel.
+- `401`: belum login/token tidak valid atau kedaluwarsa
+- `403`: akun ini nggak punya akses ke aksi atau data yang diminta
+- `404`: data atau sesi yang dicari nggak ketemu
+- `409`: ada proses yang bentrok, atau status datanya belum cocok untuk aksi tersebut
+- `422`: ada isian yang nggak lolos validasi atau aturan sistem
+- `429`: request terlalu sering atau CAPTCHA perlu dicek
+- `503`: layanan yang dibutuhkan belum siap atau belum disetel
 
 ### 1.4 Role dan batas akses
 
 Satu akun cuma punya satu role aktif:
 
-- `HRD`: akses pengelolaan sistem dan data lintas divisi.
-- `KADIV`: akses data divisinya dan proses persetujuan sesuai kewenangan.
-- `EMPLOYEE`: akses data pribadi.
+- `HRD`: akses pengelolaan sistem dan data lintas divisi
+- `KADIV`: akses data divisinya dan proses persetujuan sesuai kewenangan
+- `EMPLOYEE`: akses data pribadi
 
-Ada endpoint yang dibatasi langsung lewat middleware di route, ada juga yang ngecek hak akses di controller. Jadi jangan langsung mengira endpoint tanpa `EnsureRole` itu bebas dipakai, ya.
+Ada endpoint yang dibatasi langsung lewat middleware di route, ada juga yang ngecek hak akses di controller. Jadi jangan langsung mengira endpoint tanpa `EnsureRole` itu bebas dipakai, ya
 
 ---
 
 ## 2. Login & akun
 
-Endpoint buat login dan ngurus akun semuanya ada di `/auth`.
+Endpoint buat login dan ngurus akun semuanya ada di `/auth`
 
 | Method | Endpoint                | Siapa yang bisa akses | Catatan                                              |
 | ------ | ----------------------- | --------------------- | ---------------------------------------------------- |
@@ -166,11 +166,11 @@ Contoh response `200`:
 
 Yang perlu diingat:
 
-- `expires_in` ngikutin pengaturan Sanctum. Nilainya bisa `null`.
-- `employee` bisa `null` kalau akun tersebut belum terhubung ke data karyawan.
-- Kalau `must_change_password=true`, arahkan pengguna ke halaman ganti password dulu sebelum masuk ke fitur aplikasi.
-- Login dibatasi maksimal 5 kali percobaan dalam 15 menit untuk kombinasi email dan IP yang sama.
-- Kalau gagal login sudah mencapai ambang CAPTCHA (default-nya 3 kali), frontend perlu mengirim `captcha_token`. Kalau provider CAPTCHA belum disetel, backend bisa membalas dengan `429`.
+- `expires_in` ngikutin pengaturan Sanctum. Nilainya bisa `null`
+- `employee` bisa `null` kalau akun tersebut belum terhubung ke data karyawan
+- Kalau `must_change_password=true`, arahkan pengguna ke halaman ganti password dulu sebelum masuk ke fitur aplikasi
+- Login dibatasi maksimal 5 kali percobaan dalam 15 menit untuk kombinasi email dan IP yang sama
+- Kalau gagal login sudah mencapai ambang CAPTCHA (default-nya 3 kali), frontend perlu mengirim `captcha_token`. Kalau provider CAPTCHA belum disetel, backend bisa membalas dengan `429`
 
 ### 2.2 Aktivasi akun
 
@@ -1136,7 +1136,7 @@ Endpoint health ada di luar prefix `/api/v1`. Pakai endpoint ini buat cek apakah
 
 ---
 
-## 16. Catatan buat teman yang ngerjain frontend
+## 16. Catatan buat yang ngerjain frontend
 
 1. Simpan token dengan cara yang aman di frontend. Untuk request yang butuh login, sertakan header `Authorization: Bearer ...`.
 2. Kalau dapat `401`, arahkan pengguna ke halaman login dan bersihkan state autentikasinya.
