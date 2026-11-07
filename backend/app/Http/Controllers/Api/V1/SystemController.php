@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\DeductionRecord;
-use App\Models\Device;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\Employee;
 use App\Models\IntegrationLog;
 use App\Models\LeaveRequest;
@@ -28,10 +28,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
-/*
-  Modul pendukung: dashboard, notifikasi, pengguna & role, pengaturan,
-  laporan, audit log, komponen PPh, dan perangkat
- */
+/* Modul pendukung: dashboard, notifikasi, pengguna & role, pengaturan,
+  laporan, audit log, komponen PPh, dan perangkat */
 class SystemController extends Controller
 {
     public function __construct(
@@ -133,29 +131,44 @@ class SystemController extends Controller
     public function notifications(Request $request): JsonResponse
     {
         $query = Notification::query()
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $request->user()->getAuthIdentifier())
             ->when($request->query('is_read') !== null, fn ($q) => $q->where('is_read', filter_var($request->query('is_read'), FILTER_VALIDATE_BOOLEAN)));
 
         return $this->paginated($query->orderByDesc('id')->paginate($request->integer('per_page', 20)));
     }
 
-    public function readNotification(int $id): JsonResponse
-    {
-        $notification = Notification::where('user_id', auth()->id())->findOrFail($id);
+    public function readNotification(Request $request, int $id): JsonResponse
+{
+    $notification = Notification::where(
+        'user_id',
+        $request->user()->getAuthIdentifier()
+    )->findOrFail($id);
 
-        $notification->update(['is_read' => true, 'read_at' => now()]);
+    $notification->update([
+        'is_read' => true,
+        'read_at' => now(),
+    ]);
 
-        return $this->success($notification, 'Notifikasi ditandai dibaca');
+    return $this->success($notification, 'Notifikasi ditandai dibaca');
     }
 
-    public function readAllNotifications(): JsonResponse
+public function readAllNotifications(Request $request): JsonResponse
     {
-        $count = Notification::where('user_id', auth()->id())
-            ->where('is_read', false)
-            ->update(['is_read' => true, 'read_at' => now()]);
+    $count = Notification::where(
+        'user_id',
+        $request->user()->getAuthIdentifier()
+    )
+        ->where('is_read', false)
+        ->update([
+            'is_read' => true,
+            'read_at' => now(),
+        ]);
 
-        return $this->success(['updated' => $count], 'Semua notifikasi ditandai dibaca');
-    }
+    return $this->success(
+        ['updated' => $count],
+        'Semua notifikasi ditandai dibaca'
+    );
+}
 
     // Pengguna & role
 
@@ -225,10 +238,8 @@ class SystemController extends Controller
     }
 
 
-/*
-  PATCH /system/users/{id}/role
-  Perubahan role akun hanya dapat dilakukan oleh HRD
- */
+/* PATCH /system/users/{id}/role
+  Perubahan role akun hanya dapat dilakukan oleh HRD */
 public function updateUserRole(Request $request, int $id): JsonResponse
 {
     $data = $request->validate([
@@ -439,14 +450,27 @@ public function updateUserRole(Request $request, int $id): JsonResponse
 
     // Laporan
 
-    public function reports(Request $request): JsonResponse
-    {
-        $query = Report::query()
-            ->when(! auth()->user()->isHrd(), fn ($q) => $q->where('created_by', auth()->id()))
-            ->when($request->query('type'), fn ($q, $t) => $q->where('type', $t));
+public function reports(Request $request): JsonResponse
+{
+    $user = $request->user();
 
-        return $this->paginated($query->orderByDesc('id')->paginate($request->integer('per_page', 15)));
-    }
+    $query = Report::query()
+        ->when(
+            ! $user->isHrd(),
+            fn ($q) => $q->where(
+                'created_by',
+                $user->getAuthIdentifier()
+            )
+        )
+        ->when(
+            $request->query('type'),
+            fn ($q, $t) => $q->where('type', $t)
+        );
+
+    return $this->paginated(
+        $query->orderByDesc('id')->paginate($request->integer('per_page', 15))
+    );
+}
 
     public function generateReport(Request $request): JsonResponse
     {
@@ -467,7 +491,7 @@ public function updateUserRole(Request $request, int $id): JsonResponse
             'parameters' => $data,
             'status' => Report::STATUS_DONE,
             'file_path' => null,
-            'created_by' => $request->user()->id,
+            'created_by' => $request->user()->getAuthIdentifier(),
         ]);
 
         AuditService::created('REPORT', $report, $request);
@@ -475,18 +499,20 @@ public function updateUserRole(Request $request, int $id): JsonResponse
         return $this->accepted($report, 'Laporan dibuat');
     }
 
-    public function downloadReport(int $id)
-    {
-        $report = Report::findOrFail($id);
+public function downloadReport(Request $request, int $id): JsonResponse
+{
+    $report = Report::findOrFail($id);
+    $user = $request->user();
 
-        abort_if(
-            ! auth()->user()->isHrd() && $report->created_by !== auth()->id(),
-            403,
-            'Laporan berada di luar scope Anda.'
-        );
+    abort_if(
+        ! $user->isHrd()
+        && (int) $report->created_by !== (int) $user->getAuthIdentifier(),
+        403,
+        'Laporan berada di luar scope Anda.'
+    );
 
-        return $this->success($report, 'Laporan siap diunduh');
-    }
+    return $this->success($report, 'Laporan siap diunduh');
+}
 
     //Audit log
 
@@ -502,7 +528,7 @@ public function updateUserRole(Request $request, int $id): JsonResponse
         return $this->paginated($query->orderByDesc('created_at')->paginate($request->integer('per_page', 50)));
     }
 
-    public function exportAuditLogs(Request $request): JsonResponse
+    public function exportAuditLogs(Request $request): StreamedResponse
     {
         $logs = AuditLog::with('user:id,name')
             ->orderByDesc('created_at')
@@ -606,7 +632,7 @@ public function updateUserRole(Request $request, int $id): JsonResponse
         return $this->success(null, 'Komponen PPh dihapus');
     }
 
-    /* PUT /tax-components/toggle — saklar global PPh. */
+    /* PUT /tax-components/toggle — saklar global PPh */
     public function toggleTax(Request $request): JsonResponse
     {
         $data = $request->validate(['enabled' => 'required|boolean']);
@@ -626,17 +652,20 @@ public function updateUserRole(Request $request, int $id): JsonResponse
         ], $data['enabled'] ? 'Perhitungan PPh diaktifkan' : 'Perhitungan PPh dimatikan');
     }
 
-    public function taxPreview(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'base_amount' => 'required|numeric|min:0',
-            'deduction_amount' => 'nullable|numeric|min:0',
-        ]);
+public function taxPreview(Request $request): JsonResponse
+{
+    $data = $request->validate([
+        'base_amount' => 'required|numeric|min:0',
+        'deduction_amount' => 'nullable|numeric|min:0',
+    ]);
 
-        return $this->success(
-            $this->tax->preview((float) $data['base_amount'], (float) ($data['deduction_amount'] ?? 0))
-        );
-    }
+    return $this->success(
+        $this->tax->preview(
+            (string) $data['base_amount'],
+            (string) ($data['deduction_amount'] ?? '0')
+        )
+    );
+}
 
 
     // Perangkat
@@ -644,7 +673,7 @@ public function updateUserRole(Request $request, int $id): JsonResponse
     // Implementasi lama (fsockopen + update last_sync_at) dihapus karena
     // melaporkan SUCCESS tanpa pernah menarik log dari perangkat. Endpoint
     // /devices/{id}/logs di bawah hanya menampilkan IntegrationLog yang
-    // kini benar-benar ditulis oleh DeviceSyncService.
+    // kini benar-benar ditulis oleh DeviceSyncService
 
     public function deviceSyncLogs(int $id): JsonResponse
     {
@@ -659,9 +688,7 @@ public function updateUserRole(Request $request, int $id): JsonResponse
 
     // Pembantu
 
-/*
-  Menetapkan tepat satu role untuk satu akun.
- */
+/* Menetapkan tepat satu role untuk satu akun */
 protected function syncRole(User $user, string $roleName): void
 {
     $role = Role::query()

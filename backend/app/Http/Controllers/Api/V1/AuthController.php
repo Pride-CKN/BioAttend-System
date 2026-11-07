@@ -19,12 +19,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    /**
-     * POST /auth/login
-     * Rate limit 5 percobaan / 15 menit per (email + IP)
-     * CAPTCHA wajib setelah N kegagalan bila provider belum ada, permintaan
-     * DITOLAK dengan pesan jujur, bukan dilewati diam-diam.
-     */
+    /* POST /auth/login
+      Rate limit 5 percobaan / 15 menit per (email + IP)
+      CAPTCHA wajib setelah N kegagalan bila provider belum ada, permintaan
+      DITOLAK dengan pesan jujur, bukan dilewati diam-diam */
     public function login(Request $request, CaptchaVerifier $captcha): JsonResponse
     {
         $credentials = $request->validate([
@@ -103,10 +101,8 @@ class AuthController extends Controller
         ], 'Login berhasil');
     }
 
-    /**
-     * POST /auth/activate — aktivasi akun baru tanpa login.
-     * Token sekali pakai yang tersimpan di DB hanyalah SHA-256 dari token.
-     */
+    /*POST /auth/activate — aktivasi akun baru tanpa login.
+      Token sekali pakai yang tersimpan di DB hanyalah SHA-256 dari token */
     public function activate(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -150,13 +146,13 @@ class AuthController extends Controller
             SessionRecord::where('user_id', $user->id)->delete();
         });
 
-        // Audit sengaja tidak mencatat token maupun hash password.
+        // Audit sengaja tidak mencatat token maupun hash password
         AuditService::record('AUTH', 'ACCOUNT_ACTIVATED', 'users', $user->id, null, null, $request);
 
         return $this->success(null, 'Akun berhasil diaktifkan. Silakan login.');
     }
 
-    /** POST /auth/logout */
+    /* POST /auth/logout */
     public function logout(Request $request): JsonResponse
     {
         $request->user()?->currentAccessToken()?->delete();
@@ -166,7 +162,7 @@ class AuthController extends Controller
         return $this->success(null, 'Logout berhasil');
     }
 
-    /** POST /auth/logout-all — cabut seluruh token & sesi milik sendiri. */
+    /* POST /auth/logout-all — cabut seluruh token & sesi milik sendiri */
     public function logoutAll(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -179,7 +175,7 @@ class AuthController extends Controller
         return $this->success(null, 'Seluruh sesi telah dicabut.');
     }
 
-    /** GET /auth/sessions — daftar sesi MILIK SENDIRI */
+    /* GET /auth/sessions — daftar sesi MILIK SENDIRI */
     public function sessions(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -195,7 +191,7 @@ class AuthController extends Controller
             'is_current' => $t->id === $currentId,
         ])->all();
 
-        // Query di-scope ke user_id: tidak ada jalur membaca sesi pengguna lain.
+        // Query di-scope ke user_id: tidak ada jalur membaca sesi pengguna lain
         $sessions = SessionRecord::where('user_id', $user->id)
             ->orderByDesc('last_activity_at')->get()
             ->map(fn ($s) => [
@@ -211,7 +207,7 @@ class AuthController extends Controller
         return $this->success(array_merge($tokens, $sessions));
     }
 
-    /** DELETE /auth/sessions/{id} — pencabutan di-scope ke pemilik token. */
+    /* DELETE /auth/sessions/{id} — pencabutan di-scope ke pemilik token */
     public function revokeSession(Request $request, string $id): JsonResponse
     {
         $user = $request->user();
@@ -234,13 +230,13 @@ class AuthController extends Controller
         return $this->success(null, 'Sesi dicabut.');
     }
 
-    /** GET /profile */
+    /* GET /profile */
     public function profile(Request $request): JsonResponse
     {
         return $this->success($this->userPayload($request->user()));
     }
 
-    /** PUT /profile */
+    /* PUT /profile */
     public function updateProfile(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -258,7 +254,7 @@ class AuthController extends Controller
         return $this->success($this->userPayload($user->refresh()), 'Profil diperbarui');
     }
 
-    /** POST /auth/change-password */
+    /* POST /auth/change-password */
     public function changePassword(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -294,12 +290,12 @@ class AuthController extends Controller
         return $this->success(null, 'Kata sandi berhasil diubah. Silakan login ulang.');
     }
 
-    /** POST /auth/forgot-password */
+    /* POST /auth/forgot-password */
     public function forgotPassword(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email']]);
 
-        // Jujur: bila provider email belum ada, jangan klaim tautan terkirim.
+        // bila provider email belum ada, jangan klaim tautan terkirim
         if (app()->environment('production')
             && in_array(config('mail.default'), ['log', 'array', 'null'], true)) {
             return $this->error(
@@ -319,7 +315,12 @@ class AuthController extends Controller
 
     protected function userPayload(User $user): array
     {
-        $user->loadMissing(['roles', 'employee.department', 'employee.division', 'employee.position']);
+        $user->loadMissing([
+    'roles',
+    'employee.division',
+    'employee.unit',
+    'employee.position',
+    ]);
 
         return [
             'id' => $user->id,
@@ -333,9 +334,10 @@ class AuthController extends Controller
                 'id' => $user->employee->id,
                 'nip' => $user->employee->nip,
                 'full_name' => $user->employee->full_name,
-                'department' => $user->employee->department?->name,
                 'division' => $user->employee->division?->name,
                 'division_id' => $user->employee->division_id,
+                'unit' => $user->employee->unit?->name,
+                'unit_id' => $user->employee->unit_id,
                 'position' => $user->employee->position?->name,
                 'employment_status' => $user->employee->employment_status,
             ] : null,

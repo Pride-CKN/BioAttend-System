@@ -4,15 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/*
-  Hardening absensi & deduction — MIGRASI ADDITIVE (tidak menghapus data).
+/* Hardening absensi & deduction — MIGRASI ADDITIVE (tidak menghapus data).
  
   Menambahkan:
    - identitas log perangkat + fingerprint idempotency pada attendance_logs
    - data pendukung EARLY_DEPARTURE pada attendance_records
    - field audit pembulatan nominal akhir pada deduction_records/histories
-   - flag sinkronisasi & kesehatan pada devices
- */
+   - flag sinkronisasi & kesehatan pada devices */
 return new class extends Migration
 {
     public function up(): void
@@ -91,7 +89,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Sengaja tidak drop kolom secara otomatis (menghindari destructive migration).
-        // Rollback manual harus melalui migration yang disetujui.
+        // Sengaja tidak drop kolom secara otomatis (menghindari destructive migration)
+        // Rollback manual harus melalui migration yang disetujui
     }
 };

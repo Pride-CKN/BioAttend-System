@@ -164,7 +164,7 @@ return new class extends Migration
             ],
         ]);
 
-        /*  Kolom kantor dan Employee ID
+        /* Kolom kantor dan Employee ID
             Employee ID disimpan sebagai VARCHAR(6), bukan integer, biar format enam digit tetap dijaga
             Contoh:
             110001 -> 1.1.0.001 */

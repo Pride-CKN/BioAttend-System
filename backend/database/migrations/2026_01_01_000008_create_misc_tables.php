@@ -6,8 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /*
-      Pengaturan, notifikasi, laporan, dan audit log
+    /* Pengaturan, notifikasi, laporan, dan audit log
       audit_logs bersifat append-only — hanya ada created_at */
     public function up(): void
     {

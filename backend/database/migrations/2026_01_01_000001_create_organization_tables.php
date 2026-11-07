@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /*Struktur organisasi: departments, divisions, positions, employees
-      Dibuat lebih dulu karena users merujuk ke employees*/
+    /* Struktur organisasi: departments, divisions, positions, employees
+      Dibuat lebih dulu karena users merujuk ke employees */
     public function up(): void
     {
         Schema::create('departments', function (Blueprint $table) {

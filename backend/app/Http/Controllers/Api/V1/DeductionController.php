@@ -12,12 +12,10 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/*
-  Modul deduction
+/*Modul deduction
 
   ATURAN ALPHA: tanpa keterangan dikenakan 4% LANGSUNG sejak kejadian
-  pertama dan tidak mendapat jatah toleransi (liat DeductionService)
- */
+  pertama dan tidak mendapat jatah toleransi (liat DeductionService) */
 class DeductionController extends Controller
 {
     public function __construct(protected DeductionService $deductions) {}

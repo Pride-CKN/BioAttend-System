@@ -18,6 +18,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Sengaja menyimpan data penjadwalan operasional saat rollback.
+        // Sengaja menyimpan data penjadwalan operasional saat rollback
     }
 };

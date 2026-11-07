@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 /* Pendukung autentikasi aman & antrian:
    - password_histories: hash saja, tidak pernah menyimpan plaintext
-   - jobs / failed_jobs / cache: fallback saat Redis belum tersedia*/
+   - jobs / failed_jobs / cache: fallback saat Redis belum tersedia */
 return new class extends Migration
 {
     public function up(): void

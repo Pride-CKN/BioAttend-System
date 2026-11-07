@@ -12,7 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Throwable;
 
-/** Kirim SATU karyawan ke SATU perangkat. Idempoten berdasar payload_hash. */
+/* Kirim SATU karyawan ke SATU perangkat. Idempoten berdasar payload_hash */
 class PushEmployeeToDeviceJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -73,14 +73,22 @@ class PushEmployeeToDeviceJob implements ShouldQueue, ShouldBeUnique
             if (! $ok) {
                 throw new \RuntimeException('Perangkat menolak data karyawan.');
             }
-        } catch (\App\Services\ZKTeco\Exceptions\SdkUnavailableException $e) {
-            $push->update(['status' => DeviceEmployeePush::STATUS_FAILED, 'error_summary' => $e->getMessage()]);
-            $this->fail($e);
-        } catch (Throwable $e) {
+        } catch (\App\Services\ZKTeco\Exceptions\ZktecoConnectionException $e) {
+            $push->update([
+                'status' => DeviceEmployeePush::STATUS_FAILED,
+                'error_summary' => $e->getMessage(),
+            ]);
+
+            if ($e->errorCode === \App\Services\ZKTeco\Exceptions\ZktecoConnectionException::SDK_UNAVAILABLE) {
+                $this->fail($e);
+                return;
+            }
+
+            throw $e;        } catch (Throwable $e) {
             $push->update(['status' => DeviceEmployeePush::STATUS_FAILED, 'error_summary' => $e->getMessage()]);
             throw $e;
         } finally {
-            // Selalu lepaskan koneksi, termasuk ketika operasi push melempar.
+            // Selalu lepaskan koneksi, termasuk ketika operasi push melempar
             try {
                 $adapter->disconnect($device);
             } catch (Throwable $disconnectError) {

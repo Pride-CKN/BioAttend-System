@@ -19,10 +19,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Pengajuan: cuti, izin, lembur
- * Seluruh pengajuan mengikuti persetujuan berjenjang KADIV -> HRD (BR-08).
- */
+/* Pengajuan: cuti, izin, lembur
+  Seluruh pengajuan mengikuti persetujuan berjenjang KADIV -> HRD */
 class RequestController extends Controller
 {
     public function __construct(
@@ -31,9 +29,7 @@ class RequestController extends Controller
         protected AttendanceProcessor $processor,
     ) {}
 
-    // ---------------------------------------------------------------
     // Cuti
-    // ---------------------------------------------------------------
 
     public function leaveRequests(Request $request): JsonResponse
     {
@@ -140,7 +136,7 @@ class RequestController extends Controller
         return $this->success($leave, 'Pengajuan cuti ditolak');
     }
 
-    /** GET /leave-balances */
+    /* GET /leave-balances */
     public function leaveBalances(Request $request): JsonResponse
     {
         $employeeIds = $this->employeesQuery()->pluck('id');
@@ -153,9 +149,8 @@ class RequestController extends Controller
         return $this->success($query->get());
     }
 
-    // ---------------------------------------------------------------
+
     // Izin
-    // ---------------------------------------------------------------
 
     public function permissionRequests(Request $request): JsonResponse
     {
@@ -251,9 +246,7 @@ class RequestController extends Controller
         return $this->success($permission, 'Pengajuan izin ditolak');
     }
 
-    // ---------------------------------------------------------------
     // Lembur
-    // ---------------------------------------------------------------
 
     public function overtimeRequests(Request $request): JsonResponse
     {
@@ -371,11 +364,10 @@ class RequestController extends Controller
         return $this->success($overtime, 'Pengajuan lembur ditolak');
     }
 
-    // ---------------------------------------------------------------
-    // Pembantu
-    // ---------------------------------------------------------------
 
-    /** Tandai record kehadiran pada rentang cuti sebagai CUTI */
+    // Pembantu
+
+    /* Tandai record kehadiran pada rentang cuti sebagai CUTI */
     protected function applyLeaveToAttendance(LeaveRequest $leave): void
     {
         $date = Carbon::parse($leave->start_date);

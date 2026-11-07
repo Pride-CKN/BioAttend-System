@@ -11,6 +11,7 @@ class Division extends Model
     protected $fillable = [
         'code',
         'name',
+        'employee_code_digit',
         'head_id',
         'is_active',
     ];
@@ -18,6 +19,7 @@ class Division extends Model
     protected function casts(): array
     {
         return [
+            'employee_code_digit' => 'integer',
             'is_active' => 'boolean',
         ];
     }

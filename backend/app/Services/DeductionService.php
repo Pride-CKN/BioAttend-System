@@ -14,8 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
-/*
-  DEDUCTION ENGINE — aturan bisnis
+/* DEDUCTION ENGINE — aturan bisnis
 
     P = (Ec x 2%) + (Alpha x 4%)
     Ec = max(0, jumlah_LATE - 2)   [toleransi bulanan, per karyawan]
@@ -23,8 +22,7 @@ use RuntimeException;
     raw_final = N - D
     final = raw_final > 0 ? ceil(raw_final / 1000) * 1000 : raw_final
 
-  Nominal dasar (N) DITENTUKAN MANUAL OLEH HRD. Sistem bukan payroll
- */
+  Nominal dasar (N) DITENTUKAN MANUAL OLEH HRD. Sistem bukan payroll */
 class DeductionService
 {
     // PPh/full payroll berada di luar scope
@@ -33,25 +31,25 @@ class DeductionService
 
     protected function tolerance(): int
     {
-        return (int) Setting::get('DEDUCTION_TOLERANCE_EVENTS', 2);
+        return (int) Setting::getValue('DEDUCTION_TOLERANCE_EVENTS', 2);
     }
 
     protected function lateRate(): float
     {
-        return (float) Setting::get('DEDUCTION_RATE_PER_EVENT', 2);
+        return (float) Setting::getValue('DEDUCTION_RATE_PER_EVENT', 2);
     }
 
     protected function maxPercentage(): float
     {
-        return (float) Setting::get('MAX_DEDUCTION_PERCENTAGE', 100);
+        return (float) Setting::getValue('MAX_DEDUCTION_PERCENTAGE', 100);
     }
 
     protected function alphaRate(): float
     {
-        return (float) Setting::get('ALPHA_DEDUCTION_RATE_PERCENT', 4);
+        return (float) Setting::getValue('ALPHA_DEDUCTION_RATE_PERCENT', 4);
     }
 
-    /** Alpha tidak pernah ditoleransi. Dipertahankan sebagai konstanta bisnis. */
+    /* Alpha tidak pernah ditoleransi. Dipertahankan sebagai konstanta bisnis */
     protected function alphaIgnoresTolerance(): bool
     {
         return true;
@@ -69,7 +67,7 @@ class DeductionService
     {
         [, $end] = $this->periodRange($period);
         $endDate = Carbon::parse($end);
-        $cutoffDay = (int) Setting::get('DEDUCTION_CUTOFF_DAY', 0);
+        $cutoffDay = (int) Setting::getValue('DEDUCTION_CUTOFF_DAY', 0);
 
         $cutoff = $cutoffDay > 0
             ? $endDate->copy()->day(min($cutoffDay, $endDate->daysInMonth))
@@ -199,7 +197,7 @@ class DeductionService
                 : $this->zeroAmounts();
 
             $payload = [
-                // Early departure hanya warning, bukan event deduction.
+                // Early departure hanya warning, bukan event deduction
                 'total_events' => $summary['late_count'] + $summary['alpha_count'],
                 'tolerated_events' => min($summary['late_count'], $summary['tolerance']),
                 'charged_events' => $summary['charged'],
@@ -230,7 +228,7 @@ class DeductionService
 
             $record->refresh();
 
-            // Rincian event disimpan ulang secara idempoten (unique employee+period).
+            // Rincian event disimpan ulang secara idempoten (unique employee+period)
             $record->events()->delete();
 
             foreach ($summary['events'] as $event) {
@@ -277,7 +275,7 @@ class DeductionService
         $skipped = 0;
 
         // Proses bertahap agar perhitungan bulanan tidak memuat seluruh
-        // daftar karyawan ke memory sekaligus.
+        // daftar karyawan ke memory sekaligus
         $query->orderBy('id')->chunkById(100, function ($employees) use ($period, $options, &$calculated, &$skipped): void {
             foreach ($employees as $employee) {
                 try {
@@ -300,7 +298,7 @@ class DeductionService
         return ['period' => $period, 'calculated' => $calculated, 'skipped' => $skipped];
     }
 
-    /** Input / perbarui nominal dasar (N) oleh HRD. */
+    /* Input / perbarui nominal dasar (N) oleh HRD */
     public function inputBaseAmount(int $deductionId, string|int|float $baseAmount, array $options = []): DeductionRecord
     {
         $normalizedBase = Money::normalize($baseAmount);
@@ -336,10 +334,8 @@ class DeductionService
         }, 3);
     }
 
-    /**
-     * Konfirmasi HRD -> FINAL. Wajib: nominal dasar terisi, status CALCULATED,
-     * periode sudah lewat cut-off, dan seluruh event dasar valid.
-     */
+    /* Konfirmasi HRD -> FINAL. Wajib: nominal dasar terisi, status CALCULATED,
+      periode sudah lewat cut-off, dan seluruh event dasar valid  */
     public function confirm(int $deductionId, int $userId, ?string $note = null): DeductionRecord
     {
         return DB::transaction(function () use ($deductionId, $userId, $note): DeductionRecord {
@@ -371,7 +367,7 @@ class DeductionService
             }
 
             // Pastikan nominal tersimpan konsisten dengan persentase terakhir
-            // sebelum status Final ditetapkan.
+            // sebelum status Final ditetapkan
             $amounts = $this->computeAmounts((string) $record->base_amount, (string) $record->total_percentage);
             $record->update(array_merge($amounts, [
                 'status' => DeductionRecord::STATUS_FINAL,
@@ -391,10 +387,8 @@ class DeductionService
         }, 3);
     }
 
-    /**
-     * PPh berada di luar scope fase pertama (PRD 4.2). Method dipertahankan
-     * sementara untuk kompatibilitas internal, tetapi tidak mengubah nominal.
-     */
+    /* PPh berada di luar scope fase pertama, Method dipertahankan
+      sementara untuk kompatibilitas internal, tetapi tidak mengubah nominal  */
     public function recalculateTax(string $period, array $options = []): array
     {
         $this->assertPeriod($period);
@@ -402,7 +396,7 @@ class DeductionService
         return ['period' => $period, 'updated' => 0, 'skipped' => true, 'reason' => 'PPh di luar scope fase pertama.'];
     }
 
-    /** Simulasi perhitungan tanpa menyimpan. */
+    /* Simulasi perhitungan tanpa menyimpan */
     public function preview(int $employeeId, string $period, float $baseAmount = 0): array
     {
         $this->assertPeriod($period);
@@ -433,16 +427,14 @@ class DeductionService
         ];
     }
 
-    // ---------------------------------------------------------------
-    // Nominal — decimal-safe & pembulatan akhir Rp1.000
-    // ---------------------------------------------------------------
+    // Nominal — decimal-safe & pembulatan akhir Rp1.000-
 
     protected function computeAmounts(string|int|float $baseAmount, string|int|float $percentage): array
     {
         $baseAmount = Money::normalize($baseAmount);
         $percentage = Money::normalize($percentage);
         $deduction = Money::deductionAmount($baseAmount, $percentage);
-        // Fase pertama hanya deduction kehadiran; PPh tidak ikut dihitung.
+        // Fase pertama hanya deduction kehadiran; PPh tidak ikut dihitung
         $pphAmount = '0.00';
         $raw = Money::rawFinalAmount($baseAmount, $deduction, $pphAmount);
         $rounding = Money::applyFinalRounding($raw);
@@ -479,9 +471,8 @@ class DeductionService
         }
     }
 
-    // ---------------------------------------------------------------
+
     // Riwayat
-    // ---------------------------------------------------------------
 
     protected function writeHistory(DeductionRecord $record, array $options): DeductionCalculationHistory
     {

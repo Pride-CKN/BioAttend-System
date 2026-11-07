@@ -5,8 +5,7 @@ namespace App\Jobs;
 use App\Models\Device;
 use App\Models\DeviceSyncHistory;
 use App\Services\Device\DeviceSyncService;
-use App\Services\ZKTeco\Exceptions\DeviceConnectionException;
-use App\Services\ZKTeco\Exceptions\SdkUnavailableException;
+use App\Services\ZKTeco\Exceptions\ZktecoConnectionException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,34 +16,25 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
-/**
- * Satu pekerjaan sinkronisasi untuk SATU perangkat.
- *
- * - ShouldBeUnique (kunci = device id) mencegah dua job aktif pada perangkat
- *   yang sama, ditambah distributed lock di DeviceSyncService.
- * - Retry + exponential backoff HANYA untuk kegagalan sementara.
- * - Error permanen (commkey salah, IP salah, SDK tidak ada) langsung gagal.
- */
 class DeviceSyncJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
-
     public array $backoff = [30, 120, 300];
-
     public int $timeout = 180;
-
     public int $uniqueFor = 900;
 
     public function __construct(
-        public int $deviceId,
-        public string $triggerSource = 'scheduled',
-        public ?string $correlationId = null,
+    public int $deviceId,
+    public string $triggerSource = 'scheduled',
+    public ?string $correlationId = null,
     ) {
-        $this->tries = max(1, (int) config('zkteco.sync.max_attempts', 3));
-        $this->timeout = max(30, (int) config('zkteco.sync.execution_timeout', 120));
-        $this->backoff = (array) config('zkteco.sync.backoff', [30, 120, 300]);
+    $this->correlationId ??= (string) Str::uuid();
+
+    $this->tries = max(1, (int) config('zkteco.sync.max_attempts', 3));
+    $this->timeout = max(30, (int) config('zkteco.sync.execution_timeout', 120));
+    $this->backoff = (array) config('zkteco.sync.backoff', [30, 120, 300]);
     }
 
     public function uniqueId(): string
@@ -61,20 +51,20 @@ class DeviceSyncJob implements ShouldQueue, ShouldBeUnique
         }
 
         try {
-            $service->sync($device, [
-                'trigger_source' => $this->triggerSource,
-                'attempt_count' => $this->attempts(),
-                'correlation_id' => $this->correlationId ?? (string) Str::uuid(),
-            ]);
-        } catch (SdkUnavailableException $e) {
-            // Dependency eksternal belum tersedia — tidak ada gunanya retry.
-            $this->fail($e);
-        } catch (DeviceConnectionException $e) {
-            if (! $e->isTemporary()) {
+            $service->sync(
+                $device,
+                $this->triggerSource,
+                $this->correlationId,
+                $this->attempts()
+            );
+        } catch (ZktecoConnectionException $e) {
+            if ($e->errorCode === ZktecoConnectionException::SDK_UNAVAILABLE) {
                 $this->fail($e);
+
+                return;
             }
 
-            throw $e; // temporary -> exponential backoff
+            throw $e;
         }
     }
 
@@ -87,11 +77,14 @@ class DeviceSyncJob implements ShouldQueue, ShouldBeUnique
             ->first();
 
         $history?->update([
-            'status' => $e instanceof DeviceConnectionException && $e->errorCode === 'TIMEOUT'
-                ? DeviceSyncHistory::STATUS_TIMEOUT
-                : DeviceSyncHistory::STATUS_FAILED,
+            'status' => $e instanceof ZktecoConnectionException
+                && $e->errorCode === ZktecoConnectionException::TIMEOUT
+                    ? DeviceSyncHistory::STATUS_TIMEOUT
+                    : DeviceSyncHistory::STATUS_FAILED,
             'completed_at' => now(),
-            'error_code' => $e instanceof SdkUnavailableException ? 'SDK_UNAVAILABLE' : 'JOB_FAILED',
+            'error_code' => $e instanceof ZktecoConnectionException
+                ? $e->errorCode
+                : 'JOB_FAILED',
             'error_summary' => $e->getMessage(),
         ]);
 

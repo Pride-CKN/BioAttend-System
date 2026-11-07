@@ -18,13 +18,13 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Binding adapter perangkat: vendor SDK dipisahkan dari business logic.
+        // Binding adapter perangkat: vendor SDK dipisahkan dari business logic
         $this->app->singleton(DeviceAdapter::class, function ($app) {
             $driver = config('zkteco.driver', 'sdk');
 
             if ($driver === 'mock') {
-                // Mock hanya boleh dipakai di lingkungan testing/local.
-                // Produksi tidak boleh mengklaim koneksi nyata lewat mock.
+                // Mock hanya boleh dipakai di lingkungan testing/local
+                // Produksi tidak boleh mengklaim koneksi nyata lewat mock
                 if ($app->environment('production')) {
                     throw new \RuntimeException(
                         'ZKTECO_DRIVER=mock tidak diizinkan di production.'
@@ -37,22 +37,22 @@ class AppServiceProvider extends ServiceProvider
             return new ZKTecoSdkAdapter();
         });
 
-        // CAPTCHA: default NOT_CONFIGURED (BLOCKED). Implementasi nyata
-        // didaftarkan di sini setelah provider & secret tersedia.
+        // CAPTCHA: default NOT_CONFIGURED (BLOCKED)
+        // didaftarkan di sini setelah provider & secret tersedia
         $this->app->bind(CaptchaVerifier::class, fn () => new NullCaptchaVerifier());
     }
 
     public function boot(): void
     {
-        // PRD 20.3 — konfigurasi hashing wajib bcrypt dengan cost >= 10.
-        // Konfigurasi lemah dihentikan, bukan diterima diam-diam.
+        // konfigurasi hashing wajib bcrypt dengan cost >= 10
+        // Konfigurasi lemah dihentikan
         PasswordHashPolicy::assertConfiguration();
 
-        // PRD 20.1 — 5 percobaan login / 15 menit per (email + IP).
+        //  5 percobaan login / 15 menit per (email + IP)
         RateLimiter::for('login', fn (Request $request) => Limit::perMinutes(15, 5)
             ->by(LoginThrottle::key($request)));
 
-        // Pembatasan umum 60 permintaan / menit untuk seluruh API terautentikasi.
+        // Pembatasan umum 60 permintaan / menit untuk seluruh API terautentikasi
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)
             ->by($request->user()?->id ?: $request->ip()));
     }

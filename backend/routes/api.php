@@ -13,18 +13,15 @@ use App\Http\Controllers\Api\V1\WorkScheduleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-| Semua endpoint berada di bawah prefix /api/v1 dan memakai format respons
-| seragam: { success, message, data, meta } atau { success, message, errors }.
-|
-| Middleware:
-|   auth:sanctum -> butuh Bearer token
-|   role:HRD,KADIV -> pembatasan role
-| Scope data: HRD = global, KADIV = divisinya, EMPLOYEE = dirinya sendiri.
-*/
+/* API Routes
+
+ Semua endpoint berada di bawah prefix /api/v1 dan memakai format respons
+ seragam: { success, message, data, meta } atau { success, message, errors }
+
+ Middleware:
+   auth:sanctum -> butuh Bearer token
+   role:HRD,KADIV -> pembatasan role
+ Scope data: HRD = global, KADIV = divisinya, EMPLOYEE = dirinya sendiri */
 
 Route::get('/health', fn () => response()->json([
     'success'   => true,
@@ -39,7 +36,7 @@ Route::get('/health', fn () => response()->json([
 
 Route::prefix('v1')->group(function () {
 
-    /*Autentikasi (publik + terautentikasi)*/
+    /* Autentikasi (publik + terautentikasi) */
     Route::prefix('auth')->group(function () {
         // 5 percobaan / 15 menit per (email + IP), didefinisikan
         // pada RateLimiter::for('login') di AppServiceProvider
@@ -64,7 +61,7 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    /*  Semua endpoint terautentikasi*/
+    /*  Semua endpoint terautentikasi */
     Route::middleware(['auth:sanctum', 'password.changed'])->group(function () {
 
         /* Dashboard */
@@ -95,6 +92,8 @@ Route::prefix('v1')->group(function () {
                 ->middleware('role:HRD');
             Route::post('import', [EmployeeController::class, 'import'])
                 ->middleware('role:HRD');
+                Route::post('register', [EmployeeController::class, 'storeWithAccount'])
+    ->middleware('role:HRD');
             Route::get('{id}', [EmployeeController::class, 'show']);
             Route::put('{id}', [EmployeeController::class, 'update'])
                 ->middleware('role:HRD');
@@ -156,13 +155,15 @@ Route::prefix('v1')->group(function () {
 
             // Koreksi absensi (approval berjenjang)
             Route::get('corrections', [AttendanceController::class, 'corrections']);
-            Route::post('corrections', [AttendanceController::class, 'storeCorrection']);
+            Route::post('corrections', [AttendanceController::class, 'storeCorrection'])
+                ->middleware('role:HRD,KADIV,EMPLOYEE');
             Route::post('corrections/{id}/approve', [AttendanceController::class, 'approveCorrection'])
                 ->middleware('role:HRD,KADIV');
             Route::post('corrections/{id}/reject', [AttendanceController::class, 'rejectCorrection'])
                 ->middleware('role:HRD,KADIV');
 
-            Route::get('{id}', [AttendanceController::class, 'show']);
+            Route::get('{id}', [AttendanceController::class, 'show'])
+                ->middleware('role:HRD,KADIV,EMPLOYEE');
         });
 
         /* Pengajuan */
@@ -271,7 +272,7 @@ Route::prefix('v1')->group(function () {
         });
 
         /* AI Assistant */
-        Route::prefix('ai')->group(function () {
+        Route::prefix('ai')->middleware('role:HRD')->group(function () {
             Route::post('chat', [AiController::class, 'chat'])->middleware('throttle:30,1');
             Route::get('conversations', [AiController::class, 'conversations']);
             Route::get('conversations/{id}/messages', [AiController::class, 'messages']);

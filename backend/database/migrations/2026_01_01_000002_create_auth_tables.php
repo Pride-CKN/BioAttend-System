@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /* Otentikasi & otorisasi: roles, permissions, penghubung, users, sessions
-       Token API ditangani Sanctum (personal_access_tokens)*/
+       Token API ditangani Sanctum (personal_access_tokens) */
     public function up(): void
     {
         Schema::create('roles', function (Blueprint $table) {

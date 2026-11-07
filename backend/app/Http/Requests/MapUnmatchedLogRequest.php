@@ -4,12 +4,12 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/** Validasi mapping manual log unmatched oleh HRD (PRD 7.3). */
+/* Validasi mapping manual log unmatched oleh HRD */
 class MapUnmatchedLogRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Otorisasi final tetap di middleware role:HRD pada route.
+        // Otorisasi final tetap di middleware role:HRD pada route
         return $this->user() !== null;
     }
 

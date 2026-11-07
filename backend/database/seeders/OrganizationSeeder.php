@@ -13,68 +13,82 @@ class OrganizationSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function (): void {
-            $definitions = [
-                [
-                    'code' => 'IND',
-                    'name' => 'Industrial',
-                    'units' => [
-                        ['code' => 'PROD', 'name' => 'Produksi', 'digit' => 1],
-                        ['code' => 'GUD', 'name' => 'Pergudangan', 'digit' => 2],
-                    ],
-                ],
-                [
-                    'code' => 'KOM',
-                    'name' => 'Komersial',
-                    'units' => [
-                        ['code' => 'MKT', 'name' => 'Marketing', 'digit' => 1],
-                        ['code' => 'BRD', 'name' => 'Branding', 'digit' => 2],
-                    ],
-                ],
-                [
-                    'code' => 'PNG',
-                    'name' => 'Pengadaan',
-                    'units' => [
-                        ['code' => 'AST', 'name' => 'Aset', 'digit' => 1],
-                        ['code' => 'PEM', 'name' => 'Pembelian', 'digit' => 2],
-                    ],
-                ],
-                [
-                    'code' => 'KEU',
-                    'name' => 'Keuangan',
-                    'units' => [
-                        ['code' => 'PAJ', 'name' => 'Perpajakan', 'digit' => 1],
-                        ['code' => 'AKT', 'name' => 'Akuntan', 'digit' => 2],
-                    ],
-                ],
-                [
-                    'code' => 'OPR',
-                    'name' => 'Operasional',
-                    'units' => [
-                        ['code' => 'REG', 'name' => 'Regional', 'digit' => 1],
-                        ['code' => 'GER', 'name' => 'Gerai', 'digit' => 2],
-                        ['code' => 'KEM', 'name' => 'Kemitraan', 'digit' => 3],
-                    ],
-                ],
-                [
-                    'code' => 'TKG',
-                    'name' => 'Tata Kelola',
-                    'units' => [],
-                ],
-                [
-                    'code' => 'SDM',
-                    'name' => 'SDM',
-                    'units' => [],
-                ],
-            ];
+$definitions = [
+    [
+        'code' => 'IND',
+        'name' => 'Industrial',
+        'digit' => 1,
+        'units' => [
+            ['code' => 'PROD', 'name' => 'Produksi', 'digit' => 1],
+            ['code' => 'GUD', 'name' => 'Pergudangan', 'digit' => 2],
+        ],
+    ],
+    [
+        'code' => 'KOM',
+        'name' => 'Komersial',
+        'digit' => 2,
+        'units' => [
+            ['code' => 'MKT', 'name' => 'Marketing', 'digit' => 1],
+            ['code' => 'BRD', 'name' => 'Branding', 'digit' => 2],
+        ],
+    ],
+    [
+        'code' => 'PNG',
+        'name' => 'Pengadaan',
+        'digit' => 3,
+        'units' => [
+            ['code' => 'AST', 'name' => 'Aset', 'digit' => 1],
+            ['code' => 'PEM', 'name' => 'Pembelian', 'digit' => 2],
+        ],
+    ],
+    [
+        'code' => 'KEU',
+        'name' => 'Keuangan',
+        'digit' => 4,
+        'units' => [
+            ['code' => 'PAJ', 'name' => 'Perpajakan', 'digit' => 1],
+            ['code' => 'AKT', 'name' => 'Akuntan', 'digit' => 2],
+        ],
+    ],
+    [
+        'code' => 'OPR',
+        'name' => 'Operasional',
+        'digit' => 7,
+        'units' => [
+            ['code' => 'REG', 'name' => 'Regional', 'digit' => 1],
+            ['code' => 'GER', 'name' => 'Gerai', 'digit' => 2],
+            ['code' => 'KEM', 'name' => 'Kemitraan', 'digit' => 3],
+        ],
+    ],
+    [
+        'code' => 'TKG',
+        'name' => 'Tata Kelola',
+        'digit' => 5,
+        'units' => [],
+    ],
+    [
+        'code' => 'SDM',
+        'name' => 'SDM',
+        'digit' => 6,
+        'units' => [],
+    ],
+];
 
             foreach ($definitions as $definition) {
                 $division = Division::query()->firstOrCreate(
-                    ['code' => $definition['code']],
-                    [
-                        'name' => $definition['name'],
-                        'is_active' => true,
-                    ]
-                );
+    ['code' => $definition['code']],
+    [
+        'name' => $definition['name'],
+        'employee_code_digit' => $definition['digit'],
+        'is_active' => true,
+    ]
+);
+
+if ((int) $division->employee_code_digit !== $definition['digit']) {
+    throw new RuntimeException(
+        "Digit Employee ID Divisi {$division->name} tidak sesuai konfigurasi."
+    );
+}
 
                 if ($division->id < 1 || $division->id > 9) {
                     throw new RuntimeException(

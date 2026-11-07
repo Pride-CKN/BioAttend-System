@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /* Inti absensi: attendance_logs (append-only), attendance_records,
-      attendance_corrections*/
+      attendance_corrections */
     public function up(): void
     {
         // Raw log pemindaian — APPEND-ONLY (BR-04)

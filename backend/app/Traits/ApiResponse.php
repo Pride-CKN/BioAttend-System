@@ -5,11 +5,9 @@ namespace App\Traits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 
-/**
- * Format respons seragam seluruh endpoint (PRD 18.1):
- *   sukses : { success: true,  message, data, meta }
- *   gagal  : { success: false, message, errors }
- */
+/* Format respons seragam seluruh endpoint:
+    sukses : { success: true,  message, data, meta }
+    gagal  : { success: false, message, errors } */
 trait ApiResponse
 {
     protected function success(mixed $data = null, string $message = 'Berhasil', int $status = 200): JsonResponse
@@ -31,7 +29,7 @@ trait ApiResponse
         return $this->success($data, $message, 202);
     }
 
-    /** Respons sukses lengkap dengan meta pagination. */
+    /* Respons sukses lengkap dengan meta pagination */
     protected function paginated(LengthAwarePaginator $paginator, string $message = 'Berhasil'): JsonResponse
     {
         return response()->json([

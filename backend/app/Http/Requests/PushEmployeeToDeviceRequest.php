@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-/** Validasi push event-driven data karyawan ke perangkat (PRD 6.E). */
+/* Validasi push event-driven data karyawan ke perangkat  */
 class PushEmployeeToDeviceRequest extends FormRequest
 {
     public function authorize(): bool
