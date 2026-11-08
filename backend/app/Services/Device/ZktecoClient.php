@@ -149,6 +149,7 @@ class ZktecoClient
 
         return $records;
     }
+
     public function skippedRows(): int
     {
         return $this->skippedRows;
@@ -238,6 +239,39 @@ class ZktecoClient
         return $this->zk
             ?? throw ZktecoConnectionException::notConnected();
     }
+
+    public function upsertEmployee(string $identifier, string $name): bool
+    {
+        $this->ensureConnected();
+
+        if (strlen($identifier) > 9 || strlen($name) > 24) {
+            throw new \InvalidArgumentException(
+                'ZKTeco employee identifiers are limited to 9 bytes and employee names to 24 bytes.'
+            );
+        }
+
+        $users = $this->zk->getUser();
+        $users = is_array($users) ? $users : [];
+        $uid = isset($users[$identifier]['uid'])
+            ? (int) $users[$identifier]['uid']
+            : $this->nextAvailableUserId($users);
+
+        return (bool) $this->zk->setUser($uid, $identifier, $name, '');
+    }
+
+    public function removeEmployee(string $identifier): bool
+    {
+        $this->ensureConnected();
+
+        $users = $this->zk->getUser();
+
+        if (! is_array($users) || ! isset($users[$identifier]['uid'])) {
+            return true;
+        }
+
+        return (bool) $this->zk->removeUser((int) $users[$identifier]['uid']);
+    }
+
     public function disconnect(): void
     {
         if ($this->zk === null) {
@@ -257,5 +291,22 @@ class ZktecoClient
         if ($this->zk === null) {
             throw ZktecoConnectionException::notConnected();
         }
+    }
+
+    /** @param array<string, array{uid?: int}> $users */
+    private function nextAvailableUserId(array $users): int
+    {
+        $usedIds = array_flip(array_map(
+            fn (array $user): int => (int) ($user['uid'] ?? 0),
+            $users,
+        ));
+
+        for ($uid = 1; $uid <= 65535; $uid++) {
+            if (! isset($usedIds[$uid])) {
+                return $uid;
+            }
+        }
+
+        throw new \RuntimeException('The ZKTeco device has no available employee user IDs.');
     }
 }
