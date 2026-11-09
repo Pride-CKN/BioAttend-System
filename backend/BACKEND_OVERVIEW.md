@@ -119,15 +119,8 @@ Pindah ke branch integrasi dan tarik perubahan terbaru:
 
 ```bash
 git fetch origin
-git switch integration/backend-hardened
-git pull --ff-only origin integration/backend-hardened
-```
-
-Kalau branch `integration/backend-hardened` belum ada di laptop:
-
-```bash
-git fetch origin
-git switch -c integration/backend-hardened --track origin/integration/backend-hardened
+git switch main
+git pull --ff-only origin main
 ```
 
 Kalau ada perubahan lokal yang belum di-commit, amanin dulu sebelum pindah branch atau pull biar kerjaan sendiri nggak ketimpa
