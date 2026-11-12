@@ -13,12 +13,15 @@ class Device extends Model
     protected $fillable = [
         'name',
         'model',
+        'serial_number',
         'ip_address',
         'port',
         'commkey_encrypted',
         'location',
         'status',
         'last_sync_at',
+        'sync_offset_seconds',
+        'sync_interval_minutes',
         'is_active',
     ];
 
@@ -34,6 +37,8 @@ class Device extends Model
             'commkey_encrypted' => 'encrypted',
             'status' => DeviceStatus::class,
             'last_sync_at' => 'datetime',
+            'sync_offset_seconds' => 'integer',
+            'sync_interval_minutes' => 'integer',
             'is_active' => 'boolean',
         ];
     }
@@ -137,7 +142,8 @@ class Device extends Model
         }
 
         return $this->last_sync_at
-            ->addMinutes((int) config('zkteco.pull_interval_minutes', 15))
+            ->copy()
+            ->addMinutes(max(1, (int) $this->sync_interval_minutes))
             ->isPast();
     }
 

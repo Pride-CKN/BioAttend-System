@@ -161,8 +161,6 @@ class ZktecoClient
         Employee $employee,
         string $deviceUserIdentifier
     ): bool {
-        $client = $this->connectedClient();
-        $uid = $this->employeeUid($employee);
         $userId = trim($deviceUserIdentifier);
 
         if (! preg_match('/\A[0-9]{1,9}\z/', $userId)) {
@@ -171,65 +169,14 @@ class ZktecoClient
             );
         }
 
-        $name = trim((string) $employee->full_name);
-
-        $name = function_exists('mb_strcut')
-            ? mb_strcut($name, 0, 24, 'UTF-8')
-            : substr($name, 0, 24);
-
-        if ($name === '') {
-            $name = $userId;
-        }
-
-        if (! method_exists($client, 'setUser')) {
-            throw new \RuntimeException(
-                'SDK ZKTeco tidak menyediakan metode setUser().'
-            );
-        }
-
-        $result = call_user_func(
-            [$client, 'setUser'],
-            $uid,
-            $userId,
-            $name,
-            '',
-            0,
-            0
-        );
-
-        return (bool) $result;
+        return $this->upsertEmployee($userId, (string) $employee->full_name);
     }
 
     /* Hapus entri pengguna dari terminal
       Data karyawan di database BioAttend tidak dihapus */
-    public function disableEmployee(Employee $employee): bool
+    public function disableEmployee(Employee $employee, string $deviceUserIdentifier): bool
     {
-        $client = $this->connectedClient();
-        $uid = $this->employeeUid($employee);
-
-        if (! method_exists($client, 'removeUser')) {
-            throw new \RuntimeException(
-                'SDK ZKTeco tidak menyediakan metode removeUser().'
-            );
-        }
-
-        return (bool) call_user_func(
-            [$client, 'removeUser'],
-            $uid
-        );
-    }
-
-    private function employeeUid(Employee $employee): int
-    {
-        $uid = (int) $employee->getKey();
-
-        if ($uid < 1 || $uid > 65535) {
-            throw new \InvalidArgumentException(
-                'Employee ID harus berada pada rentang UID perangkat 1–65535.'
-            );
-        }
-
-        return $uid;
+        return $this->removeEmployee($deviceUserIdentifier);
     }
 
     private function connectedClient(): object
@@ -250,10 +197,17 @@ class ZktecoClient
             );
         }
 
-        $users = $this->zk->getUser();
-        $users = is_array($users) ? $users : [];
-        $uid = isset($users[$identifier]['uid'])
-            ? (int) $users[$identifier]['uid']
+        $identifier = trim($identifier);
+        $name = trim($name);
+
+        if ($identifier === '' || $name === '') {
+            throw new \InvalidArgumentException('ZKTeco employee identifier and name are required.');
+        }
+
+        $users = $this->usersFromDevice();
+        $existingUser = $this->findUserByIdentifier($users, $identifier);
+        $uid = $existingUser !== null
+            ? (int) $existingUser['uid']
             : $this->nextAvailableUserId($users);
 
         return (bool) $this->zk->setUser($uid, $identifier, $name, '');
@@ -263,13 +217,13 @@ class ZktecoClient
     {
         $this->ensureConnected();
 
-        $users = $this->zk->getUser();
+        $user = $this->findUserByIdentifier($this->usersFromDevice(), trim($identifier));
 
-        if (! is_array($users) || ! isset($users[$identifier]['uid'])) {
+        if ($user === null) {
             return true;
         }
 
-        return (bool) $this->zk->removeUser((int) $users[$identifier]['uid']);
+        return (bool) $this->zk->removeUser((int) $user['uid']);
     }
 
     public function disconnect(): void
@@ -293,13 +247,41 @@ class ZktecoClient
         }
     }
 
-    /** @param array<string, array{uid?: int}> $users */
+    /** @return array<string, array<string, mixed>> */
+    private function usersFromDevice(): array
+    {
+        $users = $this->zk->getUser();
+
+        return is_array($users) ? $users : [];
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $users
+     * @return array<string, mixed>|null
+     */
+    private function findUserByIdentifier(array $users, string $identifier): ?array
+    {
+        foreach ($users as $user) {
+            if (is_array($user) && (string) ($user['userid'] ?? '') === $identifier) {
+                return $user;
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string, array<string, mixed>> $users */
     private function nextAvailableUserId(array $users): int
     {
-        $usedIds = array_flip(array_map(
-            fn (array $user): int => (int) ($user['uid'] ?? 0),
-            $users,
-        ));
+        $usedIds = [];
+
+        foreach ($users as $user) {
+            $uid = is_array($user) ? (int) ($user['uid'] ?? 0) : 0;
+
+            if ($uid > 0 && $uid <= 65535) {
+                $usedIds[$uid] = true;
+            }
+        }
 
         for ($uid = 1; $uid <= 65535; $uid++) {
             if (! isset($usedIds[$uid])) {

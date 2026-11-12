@@ -6,7 +6,10 @@ use App\Enums\DeviceStatus;
 use App\Jobs\DeviceSyncJob;
 use App\Models\AttendanceLog;
 use App\Models\DeviceSyncHistory;
+use App\Services\AttendanceProcessor;
+use App\Services\Device\DevicePullService;
 use App\Services\Device\DeviceSyncService;
+use App\Services\Device\ZktecoClient;
 use App\Services\Zkteco\Exceptions\ZktecoConnectionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FakeZkDevice;
@@ -40,7 +43,7 @@ class DeviceSyncFlowTest extends TestCase
     public function test_successful_sync_stores_logs_and_records_history(): void
     {
         $fake = $this->useFakeZk();
-        $fake->rows = [
+        $fake->attendanceRows = [
             FakeZkDevice::punch(1, '101', '2026-11-06 08:00:00'),
             FakeZkDevice::punch(2, '102', '2026-11-06 08:05:00'),
         ];
@@ -66,7 +69,7 @@ class DeviceSyncFlowTest extends TestCase
     public function test_pulling_the_same_logs_twice_does_not_create_duplicates(): void
     {
         $fake = $this->useFakeZk();
-        $fake->rows = [
+        $fake->attendanceRows = [
             FakeZkDevice::punch(1, '101', '2026-11-06 08:00:00'),
             FakeZkDevice::punch(2, '102', '2026-11-06 08:05:00'),
         ];
@@ -85,22 +88,87 @@ class DeviceSyncFlowTest extends TestCase
     public function test_new_punches_are_added_on_the_next_pull(): void
     {
         $fake = $this->useFakeZk();
-        $fake->rows = [FakeZkDevice::punch(1, '101', '2026-11-06 08:00:00')];
+        $fake->attendanceRows = [FakeZkDevice::punch(1, '101', '2026-11-06 08:00:00')];
         $device = $this->makeDevice();
 
         $this->runJob($device->id);
 
-        $fake->rows[] = FakeZkDevice::punch(2, '101', '2026-11-06 17:00:00');
+        $fake->attendanceRows[] = FakeZkDevice::punch(2, '101', '2026-11-06 17:00:00');
         $this->runJob($device->id);
 
         $this->assertSame(2, AttendanceLog::count());
         $this->assertSame(1, DeviceSyncHistory::latest('id')->first()->total_inserted);
     }
 
+    public function test_pull_continues_after_one_record_fails_to_ingest(): void
+    {
+        $device = $this->makeDevice();
+        $fake = new FakeZkDevice;
+        $fake->attendanceRows = [
+            FakeZkDevice::punch(1, '101', '2026-11-06 08:00:00'),
+            FakeZkDevice::punch(2, '102', '2026-11-06 08:05:00'),
+            FakeZkDevice::punch(3, '103', '2026-11-06 08:10:00'),
+        ];
+        $fake->users = [
+            '101' => ['uid' => 1, 'userid' => '101', 'name' => 'One', 'role' => 0, 'password' => '', 'cardno' => '0'],
+            '102' => ['uid' => 2, 'userid' => '102', 'name' => 'Two', 'role' => 0, 'password' => '', 'cardno' => '0'],
+            '103' => ['uid' => 3, 'userid' => '103', 'name' => 'Three', 'role' => 0, 'password' => '', 'cardno' => '0'],
+        ];
+        $processor = $this->mock(AttendanceProcessor::class);
+        $attempt = 0;
+        $processor->shouldReceive('ingest')
+            ->times(3)
+            ->andReturnUsing(function () use (&$attempt): AttendanceLog {
+                $attempt++;
+
+                if ($attempt === 2) {
+                    throw new \RuntimeException('Unable to store this record.');
+                }
+
+                $log = new AttendanceLog;
+                $log->wasRecentlyCreated = true;
+
+                return $log;
+            });
+        $pull = new DevicePullService(
+            $processor,
+            fn () => new ZktecoClient('127.0.0.1', 4370, 'Asia/Jakarta', fn () => $fake),
+        );
+
+        $result = $pull->pull($device);
+
+        $this->assertSame(3, $result['fetched']);
+        $this->assertSame(2, $result['inserted']);
+        $this->assertSame(0, $result['duplicate']);
+        $this->assertSame(3, $result['unmatched']);
+        $this->assertSame(1, $result['failed']);
+    }
+
+    public function test_due_for_pull_uses_the_device_interval_without_changing_last_sync_at(): void
+    {
+        $this->travelTo('2026-11-06 09:10:00');
+        $fastDevice = $this->makeDevice([
+            'last_sync_at' => '2026-11-06 09:00:00',
+            'sync_interval_minutes' => 5,
+        ]);
+        $slowDevice = $this->makeDevice([
+            'ip_address' => '192.168.1.202',
+            'last_sync_at' => '2026-11-06 09:00:00',
+            'sync_interval_minutes' => 15,
+        ]);
+        $fastLastSyncAt = $fastDevice->last_sync_at->toIso8601String();
+
+        $this->assertTrue($fastDevice->isDueForPull());
+        $this->assertFalse($slowDevice->isDueForPull());
+        $this->assertSame($fastLastSyncAt, $fastDevice->last_sync_at->toIso8601String());
+
+        $this->travelBack();
+    }
+
     public function test_unknown_pins_are_kept_as_unmapped_not_dropped(): void
     {
         $fake = $this->useFakeZk();
-        $fake->rows = [FakeZkDevice::punch(1, '999', '2026-11-06 08:00:00')];
+        $fake->attendanceRows = [FakeZkDevice::punch(1, '999', '2026-11-06 08:00:00')];
         $device = $this->makeDevice();
 
         $this->runJob($device->id);
@@ -114,7 +182,7 @@ class DeviceSyncFlowTest extends TestCase
     public function test_malformed_rows_produce_partial_success(): void
     {
         $fake = $this->useFakeZk();
-        $fake->rows = [
+        $fake->attendanceRows = [
             FakeZkDevice::punch(1, '101', '2026-11-06 08:00:00'),
             FakeZkDevice::punch(2, '102', 'not-a-date'),
         ];

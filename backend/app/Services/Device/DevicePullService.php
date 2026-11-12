@@ -45,11 +45,11 @@ class DevicePullService
         return [
             'fetched' => count($records) + $skipped,
             'inserted' => $stored['inserted'],
-            'duplicate' => count($records) - $stored['inserted'],
+            'duplicate' => $stored['duplicate'],
             // Parsed rows whose device user identifier matches no employee.
             'unmatched' => $stored['unmapped'],
             // Rows that could not be parsed.
-            'failed' => $skipped,
+            'failed' => $skipped + $stored['failed'],
             'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
         ];
     }
@@ -58,12 +58,12 @@ class DevicePullService
      * Store device scans through the canonical attendance processor.
      *
      * @param  list<ZktecoAttendanceRecord>  $records
-     * @return array{inserted:int, unmapped:int}
+     * @return array{inserted:int, duplicate:int, unmapped:int, failed:int}
      */
     private function store(Device $device, array $records): array
     {
         if ($records === []) {
-            return ['inserted' => 0, 'unmapped' => 0];
+            return ['inserted' => 0, 'duplicate' => 0, 'unmapped' => 0, 'failed' => 0];
         }
 
         $identifiers = array_values(array_unique(array_filter(
@@ -77,26 +77,41 @@ class DevicePullService
             ->whereIn('device_user_identifier', $identifiers)
             ->pluck('id', 'device_user_identifier');
 
-        $unmapped = 0;
-        $inserted = 0;
+        $outcome = [
+            'inserted' => 0,
+            'duplicate' => 0,
+            'unmapped' => 0,
+            'failed' => 0,
+        ];
 
         foreach ($records as $record) {
-            $employeeId = $employeeIdsByIdentifier[$record->deviceUserIdentifier] ?? null;
-            $unmapped += $employeeId === null ? 1 : 0;
+            try {
+                $employeeId = $employeeIdsByIdentifier[$record->deviceUserIdentifier] ?? null;
 
-            $log = $this->attendanceProcessor->ingest(
-                $device,
-                $employeeId,
-                $record->scannedAt,
-                $record->raw,
-                ['device_user_identifier' => $record->deviceUserIdentifier],
-            );
+                if ($employeeId === null) {
+                    $outcome['unmapped']++;
+                }
 
-            if ($log->wasRecentlyCreated) {
-                $inserted++;
+                $log = $this->attendanceProcessor->ingest(
+                    $device,
+                    $employeeId,
+                    $record->scannedAt,
+                    $record->raw,
+                    ['device_user_identifier' => $record->deviceUserIdentifier],
+                );
+
+                if ($log->wasRecentlyCreated) {
+                    $outcome['inserted']++;
+                } else {
+                    $outcome['duplicate']++;
+                }
+            } catch (\Throwable $exception) {
+                $outcome['failed']++;
+
+                report($exception);
             }
         }
 
-        return ['inserted' => $inserted, 'unmapped' => $unmapped];
+        return $outcome;
     }
 }

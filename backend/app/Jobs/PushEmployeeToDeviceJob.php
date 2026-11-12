@@ -19,15 +19,19 @@ class PushEmployeeToDeviceJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries;
 
-    public array $backoff = [30, 120, 300];
+    public array $backoff;
 
     public int $timeout = 60;
 
     public int $uniqueFor = 900;
 
-    public function __construct(public int $pushId) {}
+    public function __construct(public int $pushId)
+    {
+        $this->tries = max(1, (int) config('zkteco.retries', 3));
+        $this->backoff = (array) config('zkteco.backoff_seconds', [10, 30, 60]);
+    }
 
     public function uniqueId(): string
     {
@@ -65,25 +69,21 @@ class PushEmployeeToDeviceJob implements ShouldBeUnique, ShouldQueue
                 default => throw new \InvalidArgumentException('Operasi push karyawan tidak dikenal.'),
             };
 
-            $push->update([
-                'status' => $ok ? DeviceEmployeePush::STATUS_SUCCESS : DeviceEmployeePush::STATUS_FAILED,
-                'pushed_at' => $ok ? now() : null,
-                'error_summary' => $ok ? null : 'Perangkat menolak data karyawan.',
-            ]);
-
             if (! $ok) {
                 throw new \RuntimeException('Perangkat menolak data karyawan.');
             }
+
+            $push->update([
+                'status' => DeviceEmployeePush::STATUS_SUCCESS,
+                'pushed_at' => now(),
+                'error_summary' => null,
+            ]);
+
             $this->recordIntegrationLog($push, IntegrationLog::STATUS_SUCCESS, $startedAt);
         } catch (ZktecoConnectionException $e) {
             $push->update(['status' => DeviceEmployeePush::STATUS_FAILED, 'error_summary' => $e->getMessage()]);
             $this->recordIntegrationLog($push, IntegrationLog::STATUS_FAILED, $startedAt, $e->getMessage());
-
-            if ($e->errorCode !== ZktecoConnectionException::SDK_UNAVAILABLE) {
-                throw $e;
-            }
-
-            $this->fail($e);
+            throw $e;
         } catch (Throwable $e) {
             $push->update(['status' => DeviceEmployeePush::STATUS_FAILED, 'error_summary' => $e->getMessage()]);
             $this->recordIntegrationLog($push, IntegrationLog::STATUS_FAILED, $startedAt, $e->getMessage());

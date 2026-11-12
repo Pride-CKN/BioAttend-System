@@ -85,7 +85,7 @@ class DeviceEmployeePushService
             $push->save();
 
             PushEmployeeToDeviceJob::dispatch($push->id)
-                ->onQueue((string) config('zkteco.queue', 'device-sync'))
+                ->onQueue((string) config('zkteco.employee_push_queue', 'device-push'))
                 ->afterCommit();
 
             $queued++;

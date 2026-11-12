@@ -2,27 +2,26 @@
 
 namespace Database\Seeders;
 
-use App\Models\AttendanceLog;
-use App\Models\Office;
-use App\Models\Unit;
-use App\Services\EmployeeCodeGeneratorService;
-use App\Models\Device;
 use App\Enums\DeviceStatus;
+use App\Models\AttendanceLog;
+use App\Models\Device;
 use App\Models\Division;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\Office;
 use App\Models\Position;
 use App\Models\Role;
-use Illuminate\Support\Facades\DB;
 use App\Models\Shift;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\WorkScheduleConfig;
 use App\Services\AttendanceProcessor;
-use Carbon\Carbon;
+use App\Services\EmployeeCodeGeneratorService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /* Data contoh agar API bisa langsung dicoba.
@@ -65,38 +64,37 @@ class DemoDataSeeder extends Seeder
 
     // Struktur organisasi
 
-protected function seedOrganization(): void
-{
-    // Gunakan master organisasi baru:
-    // Office -> Division -> Unit
-    $this->call(OrganizationSeeder::class);
+    protected function seedOrganization(): void
+    {
+        // Gunakan master organisasi baru:
+        // Office -> Division -> Unit
+        $this->call(OrganizationSeeder::class);
 
-    // Posisi/jabatan demo.
-    foreach ([
-        ['STF', 'Staff', 'STAFF'],
-        ['SPV', 'Supervisor', 'SUPERVISOR'],
-        ['MGR', 'Manager', 'MANAGER'],
-        ['KDV', 'Kepala Divisi', 'MANAGER'],
-    ] as [$code, $name, $level]) {
-        Position::query()->firstOrCreate(
-            ['code' => $code],
-            [
-                'name' => $name,
-                'level' => $level,
-                'is_active' => true,
-            ]
-        );
+        // Posisi/jabatan demo.
+        foreach ([
+            ['STF', 'Staff', 'STAFF'],
+            ['MGR', 'Manager', 'STAFF'],
+            ['KDV', 'Kepala Divisi', 'MANAGER'],
+            ['DIR', 'Direktur', 'DIREKTUR'],
+        ] as [$code, $name, $level]) {
+            Position::query()->firstOrCreate(
+                ['code' => $code],
+                [
+                    'name' => $name,
+                    'level' => $level,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $this->command?->info('Master organisasi dan posisi demo siap.');
     }
-
-    $this->command?->info('Master organisasi dan posisi demo siap.');
-}
-
 
     // Shift
     protected function seedShifts(): array
     {
         $definitions = [
-            'PAGI'  => ['Shift Pagi', '08:00:00', '17:00:00', false],
+            'PAGI' => ['Shift Pagi', '08:00:00', '17:00:00', false],
             'SIANG' => ['Shift Siang', '13:00:00', '21:00:00', false],
             'MALAM' => ['Shift Malam', '22:00:00', '06:00:00', true],
         ];
@@ -107,13 +105,13 @@ protected function seedOrganization(): void
             $shifts[$code] = Shift::query()->firstOrCreate(
                 ['code' => $code],
                 [
-                    'name'                    => $name,
-                    'start_time'              => $start,
-                    'end_time'                => $end,
-                    'late_tolerance_minutes'  => 15,
-                    'min_work_hours'          => 8,
-                    'is_night_shift'          => $night,
-                    'is_active'               => true,
+                    'name' => $name,
+                    'start_time' => $start,
+                    'end_time' => $end,
+                    'late_tolerance_minutes' => 15,
+                    'min_work_hours' => 8,
+                    'is_night_shift' => $night,
+                    'is_active' => true,
                 ]
             );
         }
@@ -126,12 +124,12 @@ protected function seedOrganization(): void
         WorkScheduleConfig::query()->firstOrCreate(
             ['scope_type' => WorkScheduleConfig::SCOPE_COMPANY, 'scope_id' => null],
             [
-                'effective_from'         => now()->startOfYear()->toDateString(),
-                'effective_to'           => null,
-                'shift_id'               => $defaultShift->id,
-                'work_days'              => [1, 2, 3, 4, 5],
+                'effective_from' => now()->startOfYear()->toDateString(),
+                'effective_to' => null,
+                'shift_id' => $defaultShift->id,
+                'work_days' => [1, 2, 3, 4, 5],
                 'late_tolerance_minutes' => 15,
-                'is_active'              => true,
+                'is_active' => true,
             ]
         );
     }
@@ -151,7 +149,7 @@ protected function seedOrganization(): void
 
         foreach ($holidays as [$md, $name, $type]) {
             Holiday::query()->firstOrCreate(
-                ['date' => $year . '-' . $md],
+                ['date' => $year.'-'.$md],
                 ['name' => $name, 'type' => $type, 'is_paid' => true, 'year' => $year]
             );
         }
@@ -172,11 +170,11 @@ protected function seedOrganization(): void
             $types[$code] = LeaveType::query()->firstOrCreate(
                 ['code' => $code],
                 [
-                    'name'                 => $name,
-                    'default_quota'        => $quota,
+                    'name' => $name,
+                    'default_quota' => $quota,
                     'max_days_per_request' => $max,
-                    'requires_attachment'  => $attachment,
-                    'is_active'            => true,
+                    'requires_attachment' => $attachment,
+                    'is_active' => true,
                 ]
             );
         }
@@ -187,188 +185,217 @@ protected function seedOrganization(): void
     protected function seedDevice(): Device
     {
         return Device::query()->firstOrCreate(
-            ['ip_address' => '192.168.1.201'],
+            ['ip_address' => '192.168.110.137'],
             [
-                'name'       => 'Fingerprint Gerbang Utama',
-                'model'      => 'F18',
-                'port'       => 4370,
+                'name' => 'Fingerprint Utama',
+                'model' => 'MB10-VL',
+                'port' => 4370,
                 'commkey_encrypted' => env('ZKTECO_DEMO_COMMKEY'),
-                'location'   => 'Gerbang Utama',
-                'status'     => DeviceStatus::Online,
-                'is_active'  => true,
+                'location' => 'Office',
+                'status' => DeviceStatus::Online,
+                'is_active' => true,
             ]
         );
     }
 
     // Karyawan
 
-protected function seedEmployees(): array
-{
-    // Seluruh data demo ditempatkan pada Kantor Singgasana.
-    $office = Office::query()
-        ->where('code', '1')
-        ->firstOrFail();
-
-    $generator = app(EmployeeCodeGeneratorService::class);
-
-    /*
-     * Format:
-     * [NIP, nama, email, kode divisi, kode unit, kode posisi, role]
-     *
-     * Divisi:
-     * IND = Industrial
-     * KOM = Komersial
-     * PNG = Pengadaan
-     * KEU = Keuangan
-     * OPR = Operasional
-     * TKG = Tata Kelola
-     * SDM = SDM
-     */
-    $people = [
-        ['PRD-001', 'Siti Rahmawati', 'hrd@pride.co.id', 'SDM', null, 'SPV', Role::HRD],
-
-        ['PRD-002', 'Bambang Suryanto', 'kadiv.produksi@pride.co.id', 'IND', 'PROD', 'KDV', Role::KADIV],
-        ['PRD-003', 'Dewi Kusuma', 'kadiv.gudang@pride.co.id', 'OPR', 'REG', 'KDV', Role::KADIV],
-
-        ['PRD-004', 'Ahmad Fauzi', 'ahmad.fauzi@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
-        ['PRD-005', 'Rina Kartika', 'rina.kartika@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
-        ['PRD-006', 'Joko Susilo', 'joko.susilo@pride.co.id', 'IND', 'GUD', 'STF', Role::EMPLOYEE],
-        ['PRD-007', 'Maya Anggraini', 'maya.anggraini@pride.co.id', 'IND', 'GUD', 'STF', Role::EMPLOYEE],
-
-        ['PRD-008', 'Hendra Wijaya', 'hendra.wijaya@pride.co.id', 'KOM', 'MKT', 'STF', Role::EMPLOYEE],
-        ['PRD-009', 'Lestari Putri', 'lestari.putri@pride.co.id', 'KOM', 'BRD', 'STF', Role::EMPLOYEE],
-
-        ['PRD-010', 'Rudi Hartono', 'rudi.hartono@pride.co.id', 'PNG', 'AST', 'STF', Role::EMPLOYEE],
-        ['PRD-011', 'Nurul Hidayah', 'nurul.hidayah@pride.co.id', 'KEU', 'PAJ', 'STF', Role::EMPLOYEE],
-        ['PRD-012', 'Teguh Prasetyo', 'teguh.prasetyo@pride.co.id', 'TKG', null, 'STF', Role::EMPLOYEE],
-    ];
-
-    $employees = [];
-
-    foreach ($people as [
-        $nip,
-        $name,
-        $email,
-        $divisionCode,
-        $unitCode,
-        $positionCode,
-        $role,
-    ]) {
-        $division = Division::query()
-            ->where('code', $divisionCode)
+    protected function seedEmployees(): array
+    {
+        // Seluruh data demo ditempatkan pada Kantor Singgasana.
+        $office = Office::query()
+            ->where('code', '1')
             ->firstOrFail();
 
-        $unit = $unitCode !== null
-            ? Unit::query()
-                ->where('division_id', $division->id)
-                ->where('code', $unitCode)
-                ->firstOrFail()
-            : null;
+        $generator = app(EmployeeCodeGeneratorService::class);
 
-        $position = Position::query()
-            ->where('code', $positionCode)
-            ->firstOrFail();
+        /*
+         * Format:
+         * [NIP, nama, email, kode divisi, kode unit, kode posisi, role]
+         *
+         * Divisi:
+         * IND = Industrial
+         * KOM = Komersial
+         * PNG = Pengadaan
+         * KEU = Keuangan
+         * OPR = Operasional
+         * TKG = Tata Kelola
+         * SDM = SDM
+         */
+        $people = [
+            ['10000000', 'Muhammad Irfan Naufaldi', 'muhammad.naufaldi@pride.co.id', 'DIR', null, 'DIR', Role::HRD],
+            ['11000000', 'Rivaldo Gosman', 'rivaldo.gosman@pride.co.id', 'SDM', null, 'KDV', Role::HRD],
+            ['12000000', 'Salma Annisa Luthfiyyah', 'salma.luthfiyyah@pride.co.id', 'TKG', null, 'KDV', Role::KADIV],
+            ['12000001', 'Dony Ramdhani', 'dony.ramdhani@pride.co.id', 'TKG', null, 'STF', Role::EMPLOYEE],
+            ['13000000', 'Muhammad Rizal Fadhilla', 'muhammad.fadhilla@pride.co.id', 'KEU', null, 'KDV', Role::KADIV],
+            ['13200001', 'Nurmayanti Tresna Dewi', 'nurmayanti.dewi@pride.co.id', 'KEU', 'AKT', 'STF', Role::EMPLOYEE],
+            ['13200002', 'Desty Dwi Fitrian', 'desty.fitrian@pride.co.id', 'KEU', 'AKT', 'STF', Role::EMPLOYEE],
+            ['13200003', 'Dinda Lestari', 'dinda.lestari@pride.co.id', 'KEU', 'AKT', 'STF', Role::EMPLOYEE],
+            ['14000000', 'Hadin Hadaina', 'hadin.hadaina@pride.co.id', 'PNG', null, 'KDV', Role::KADIV],
+            ['14100001', 'Novi Aryanti', 'novi.aryanti@pride.co.id', 'PNG', 'AST', 'MGR', Role::EMPLOYEE],
+            ['14200002', 'Putri Azmi', 'putri.azmi@pride.co.id', 'PNG', 'PEM', 'MGR', Role::EMPLOYEE],
+            ['15000000', 'Muhammad Ghani Permana', 'muhammad.permana@pride.co.id', 'IND', null, 'KDV', Role::KADIV],
+            ['15100001', 'Nashrul Haq', 'nashrul.haq@pride.co.id', 'IND', 'PROD', 'MGR', Role::EMPLOYEE],
+            ['15200002', 'Muhamad Rais Kurniawan', 'muhamad.kurniawan@pride.co.id', 'IND', 'GUD', 'STF', Role::EMPLOYEE],
+            ['16000000', 'Rio Ferdiansyah Putra', 'rio.putra@pride.co.id', 'OPR', null, 'KDV', Role::KADIV],
+            ['16100001', 'Nadya Ulfa Rahmani Setiawan', 'nadya.setiawan@pride.co.id', 'OPR', 'REG', 'MGR', Role::EMPLOYEE],
+            ['16200002', 'Vieri Ramdani', 'vieri.ramdani@pride.co.id', 'OPR', 'GER', 'MGR', Role::EMPLOYEE],
+            ['16200003', 'Abdi Sanjaya', 'abdi.sanjaya@pride.co.id', 'OPR', 'GER', 'STF', Role::EMPLOYEE],
+            ['17000000', 'Rafli Naufal Malik', 'rafli.malik@pride.co.id', 'KOM', null, 'KDV', Role::KADIV],
+            ['17200001', 'Gusti Akbar Maulana', 'gusti.maulana@pride.co.id', 'KOM', 'BRD', 'MGR', Role::EMPLOYEE],
+            ['17300002', 'Michael Juliano', 'michael.juliano@pride.co.id', 'KOM', 'KEM', 'MGR', Role::EMPLOYEE],
+            ['17100003', 'Sahal Surya Winata', 'sahal.winata@pride.co.id', 'KOM', 'MKT', 'STF', Role::EMPLOYEE],
+            ['17100004', 'Suhel Surya Winata', 'suhel.winata@pride.co.id', 'KOM', 'MKT', 'STF', Role::EMPLOYEE],
+            ['17300005', 'Dani Apriyandi', 'dani.apriyandi@pride.co.id', 'KOM', 'KEM', 'STF', Role::EMPLOYEE],
+            ['17300006', 'Boby Ramdani', 'boby.ramdani@pride.co.id', 'KOM', 'KEM', 'STF', Role::EMPLOYEE],
 
-        $employee = Employee::query()->firstOrCreate(
-            ['nip' => $nip],
-            [
-                'full_name' => $name,
-                'email' => $email,
-                'device_user_identifier' => $nip,
-                'phone' => '0812' . mt_rand(10000000, 99999999),
-                'gender' => mt_rand(0, 1) ? 'MALE' : 'FEMALE',
-                'join_date' => now()
-                    ->subYears(mt_rand(1, 6))
-                    ->subDays(mt_rand(0, 300))
-                    ->toDateString(),
-                'employment_status' => Employee::STATUS_ACTIVE,
-                'position_id' => $position->id,
-            ]
-        );
+            ['25100001', 'Deri Mulyana', 'deri.mulyana@pride.co.id', 'IND', 'PROD', 'MGR', Role::EMPLOYEE],
+            ['25100002', 'Erlangga Pringgajaya', 'erlangga.pringgajaya@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100003', 'Riki Ruswandi', 'riki.ruswandi@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100004', 'Reedho Muhammad Hijjaryato Muttaqien', 'reedho.muttaqien@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100005', 'Faiz Rabbani', 'faiz.rabbani@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100006', 'Fauzan Fadhlurrohman Santosa', 'fauzan.santosa@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100007', 'Rafi Faturrohman', 'rafi.faturrohman@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100008', 'Ruben Septian', 'ruben.septian@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100009', 'Andri Maulana Iskandar', 'andri.iskandar@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100010', 'Adi Mudrikah', 'adi.mudrikah@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100011', 'Anggi Lesmana', 'anggi.lesmana@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100012', 'Samsudin', 'samsudin@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100013', 'Faisal Hasbi Ashidiqqi', 'faisal.ashidiqqi@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100014', 'Rangga Muharram', 'rangga.muharram@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
+            ['25100015', 'Yoga Aryo Pratama', 'yoga.pratama@pride.co.id', 'IND', 'PROD', 'STF', Role::EMPLOYEE],
 
-        /* Employee ID tidak boleh diam-diam diganti saat seeding ulang.
-          Jika sudah punya kode, penempatan harus tetap sama */
-        if ($employee->employee_code !== null) {
-            $samePlacement =
-                (int) $employee->office_id === (int) $office->id
-                && (int) $employee->division_id === (int) $division->id
-                && (int) $employee->unit_id === (int) ($unit?->id ?? 0);
+            ['35200001', 'Akhmad Nursyhan Sholeh', 'akhmad.sholeh@pride.co.id', 'IND', 'GUD', 'MGR', Role::EMPLOYEE],
+            ['35200005', 'Aldy Permadi', 'aldy.permadi@pride.co.id', 'IND', 'GUD', 'STF', Role::EMPLOYEE],
+            ['35200006', 'Rasya', 'rasya@pride.co.id', 'IND', 'GUD', 'STF', Role::EMPLOYEE],
 
-            if (! $samePlacement) {
-                throw new \RuntimeException(
-                    "Penempatan karyawan {$employee->nip} berbeda dari konfigurasi demo. "
-                    . 'Perubahan Employee ID harus dilakukan melalui proses perubahan penempatan resmi.'
+            ['45200003', 'Alif Muhamad Gifari', 'alif.gifari@pride.co.id', 'IND', 'GUD', 'STF', Role::EMPLOYEE],
+            ['45200004', 'Teguh Akil Maliki', 'teguh.maliki@pride.co.id', 'IND', 'GUD', 'STF', Role::EMPLOYEE],
+        ];
+
+        $employees = [];
+
+        foreach ($people as [
+            $nip,
+            $name,
+            $email,
+            $divisionCode,
+            $unitCode,
+            $positionCode,
+            $role,
+        ]) {
+            $division = Division::query()
+                ->where('code', $divisionCode)
+                ->firstOrFail();
+
+            $unit = $unitCode !== null
+                ? Unit::query()
+                    ->where('division_id', $division->id)
+                    ->where('code', $unitCode)
+                    ->firstOrFail()
+                : null;
+
+            $position = Position::query()
+                ->where('code', $positionCode)
+                ->firstOrFail();
+
+            $employee = Employee::query()->firstOrCreate(
+                ['nip' => $nip],
+                [
+                    'full_name' => $name,
+                    'email' => $email,
+                    'device_user_identifier' => $nip,
+                    'phone' => '0812'.mt_rand(10000000, 99999999),
+                    'gender' => mt_rand(0, 1) ? 'MALE' : 'FEMALE',
+                    'join_date' => now()
+                        ->subYears(mt_rand(1, 6))
+                        ->subDays(mt_rand(0, 300))
+                        ->toDateString(),
+                    'employment_status' => Employee::STATUS_ACTIVE,
+                    'position_id' => $position->id,
+                ]
+            );
+
+            /* Employee ID tidak boleh diam-diam diganti saat seeding ulang.
+              Jika sudah punya kode, penempatan harus tetap sama */
+            if ($employee->employee_code !== null) {
+                $samePlacement =
+                    (int) $employee->office_id === (int) $office->id
+                    && (int) $employee->division_id === (int) $division->id
+                    && (int) $employee->unit_id === (int) ($unit?->id ?? 0);
+
+                if (! $samePlacement) {
+                    throw new \RuntimeException(
+                        "Penempatan karyawan {$employee->nip} berbeda dari konfigurasi demo. "
+                        .'Perubahan Employee ID harus dilakukan melalui proses perubahan penempatan resmi.'
+                    );
+                }
+            } else {
+                /* Pembuatan Employee ID awal beserta histori
+                  Tanggal efektif menggunakan tanggal seeding */
+                $employee = $generator->assignOrChange(
+                    employee: $employee,
+                    officeId: (int) $office->id,
+                    divisionId: (int) $division->id,
+                    unitId: $unit?->id,
+                    reason: 'Pembuatan Employee ID awal melalui DemoDataSeeder',
+                    createdBy: null,
+                    effectiveFrom: now()->toDateString(),
                 );
             }
-        } else {
-            /* Pembuatan Employee ID awal beserta histori
-              Tanggal efektif menggunakan tanggal seeding */
-            $employee = $generator->assignOrChange(
-                employee: $employee,
-                officeId: (int) $office->id,
-                divisionId: (int) $division->id,
-                unitId: $unit?->id,
-                reason: 'Pembuatan Employee ID awal melalui DemoDataSeeder',
-                createdBy: null,
-                effectiveFrom: now()->toDateString(),
-            );
+
+            $employees[] = [
+                'employee' => $employee,
+                'role' => $role,
+            ];
         }
 
-        $employees[] = [
-            'employee' => $employee,
-            'role' => $role,
-        ];
+        $this->command?->info(
+            'Semua data karyawan Sekarang(NOV 2026) demo berhasil diperiksa/dibuat.'
+        );
+
+        return $employees;
     }
 
-    $this->command?->info(
-        '12 data karyawan demo berhasil diperiksa/dibuat.'
-    );
+    protected function seedUsers(array $employees): void
+    {
+        foreach ($employees as $entry) {
+            /** @var Employee $employee */
+            $employee = $entry['employee'];
 
-    return $employees;
-}
+            $role = Role::query()
+                ->where('name', $entry['role'])
+                ->firstOrFail();
 
-
-
-protected function seedUsers(array $employees): void
-{
-    foreach ($employees as $entry) {
-        /** @var Employee $employee */
-        $employee = $entry['employee'];
-
-        $role = Role::query()
-            ->where('name', $entry['role'])
-            ->firstOrFail();
-
-        DB::transaction(function () use ($employee, $role): void {
-            $user = User::query()->firstOrCreate(
-                ['email' => $employee->email],
-                [
-                    'employee_id' => $employee->id,
-                    'name' => $employee->full_name,
-                    'password' => Hash::make(self::PASSWORD),
-                    'is_active' => true,
-                    'must_change_password' => true,
-                ]
-);
-
-            // Pastikan akun tidak terhubung ke karyawan yang berbeda
-            if ((int) $user->employee_id !== (int) $employee->id) {
-                throw new \RuntimeException(
-                    "Akun {$user->email} sudah terhubung dengan karyawan lain."
+            DB::transaction(function () use ($employee, $role): void {
+                $user = User::query()->firstOrCreate(
+                    ['email' => $employee->email],
+                    [
+                        'employee_id' => $employee->id,
+                        'name' => $employee->full_name,
+                        'password' => Hash::make(self::PASSWORD),
+                        'is_active' => true,
+                        'must_change_password' => true,
+                    ]
                 );
-            }
 
-            // Pastikan tepat satu role terpasang
-            // Role lama diganti, bukan ditambahkan
-            $user->roles()->sync([$role->id]);
-        }, 3);
+                // Pastikan akun tidak terhubung ke karyawan yang berbeda
+                if ((int) $user->employee_id !== (int) $employee->id) {
+                    throw new \RuntimeException(
+                        "Akun {$user->email} sudah terhubung dengan karyawan lain."
+                    );
+                }
+
+                // Pastikan tepat satu role terpasang
+                // Role lama diganti, bukan ditambahkan
+                $user->roles()->sync([$role->id]);
+            }, 3);
+        }
+
+        $this->command?->info(
+            'Semua akun demo berhasil diperiksa/dibuat dengan tepat satu role.'
+        );
     }
-
-    $this->command?->info(
-        '12 akun demo berhasil diperiksa/dibuat dengan tepat satu role.'
-    );
-}
-
 
     protected function seedLeaveBalances(array $employees, array $leaveTypes): void
     {
@@ -380,13 +407,13 @@ protected function seedUsers(array $employees): void
 
                 LeaveBalance::query()->firstOrCreate(
                     [
-                        'employee_id'   => $entry['employee']->id,
+                        'employee_id' => $entry['employee']->id,
                         'leave_type_id' => $type->id,
-                        'year'          => $year,
+                        'year' => $year,
                     ],
                     [
-                        'quota'     => $quota,
-                        'used'      => 0,
+                        'quota' => $quota,
+                        'used' => 0,
                         'remaining' => $quota,
                     ]
                 );
@@ -419,10 +446,10 @@ protected function seedUsers(array $employees): void
                 $date = $start->copy()->addDays($i);
 
                 // Lewati akhir pekan & hari libur
-                if ($date->isWeekend() ||  Holiday::query()
-                ->whereDate('date', $date->toDateString())
-                ->where('is_active', true)
-                ->exists()) {
+                if ($date->isWeekend() || Holiday::query()
+                    ->whereDate('date', $date->toDateString())
+                    ->where('is_active', true)
+                    ->exists()) {
                     continue;
                 }
 
@@ -437,19 +464,19 @@ protected function seedUsers(array $employees): void
                 if ($roll <= 14) {
                     LeaveRequest::query()->firstOrCreate(
                         [
-                            'employee_id'   => $employee->id,
+                            'employee_id' => $employee->id,
                             'leave_type_id' => $leaveTypes['ANNUAL']->id,
-                            'start_date'    => $date->toDateString(),
+                            'start_date' => $date->toDateString(),
                         ],
                         [
-                            'end_date'           => $date->toDateString(),
-                            'total_days'         => 1,
-                            'reason'             => 'Keperluan pribadi',
-                            'status'             => LeaveRequest::STATUS_APPROVED,
-                            'kadiv_approved_by'  => $approverId,
-                            'kadiv_approved_at'  => $date->copy()->subDay(),
-                            'hrd_approved_by'    => $approverId,
-                            'hrd_approved_at'    => $date->copy()->subDay(),
+                            'end_date' => $date->toDateString(),
+                            'total_days' => 1,
+                            'reason' => 'Keperluan pribadi',
+                            'status' => LeaveRequest::STATUS_APPROVED,
+                            'kadiv_approved_by' => $approverId,
+                            'kadiv_approved_at' => $date->copy()->subDay(),
+                            'hrd_approved_by' => $approverId,
+                            'hrd_approved_at' => $date->copy()->subDay(),
                         ]
                     );
 
@@ -461,80 +488,80 @@ protected function seedUsers(array $employees): void
                 // 12% terlambat
                 $lateMinutes = $roll <= 26 ? mt_rand(20, 90) : mt_rand(0, 8);
 
-$checkIn = $date->copy()->setTime(8, 0)->addMinutes($lateMinutes)->addSeconds(mt_rand(0, 59));
+                $checkIn = $date->copy()->setTime(8, 0)->addMinutes($lateMinutes)->addSeconds(mt_rand(0, 59));
 
-// 10% pulang cepat
-$earlyMinutes = $roll >= 90 ? mt_rand(30, 120) : 0;
-$checkOut = $date->copy()->setTime(17, 0)->subMinutes($earlyMinutes)->addSeconds(mt_rand(0, 59));
+                // 10% pulang cepat
+                $earlyMinutes = $roll >= 90 ? mt_rand(30, 120) : 0;
+                $checkOut = $date->copy()->setTime(17, 0)->subMinutes($earlyMinutes)->addSeconds(mt_rand(0, 59));
 
-// 3% tidak lengkap (lupa check-out)
-$skipCheckOut = $roll >= 97;
+                // 3% tidak lengkap (lupa check-out)
+                $skipCheckOut = $roll >= 97;
 
-// CHECK-IN
-$checkInPayload = [
-    'source' => 'seed',
-    'employee_code' => $employee->employee_code,
-];
+                // CHECK-IN
+                $checkInPayload = [
+                    'source' => 'seed',
+                    'employee_code' => $employee->employee_code,
+                ];
 
-$checkInDeviceLogId = sprintf(
-    'seed-%d-%s-in',
-    $employee->id,
-    $date->format('Ymd')
-);
+                $checkInDeviceLogId = sprintf(
+                    'seed-%d-%s-in',
+                    $employee->id,
+                    $date->format('Ymd')
+                );
 
-$checkInDeviceUserIdentifier = $employee->device_user_identifier;
+                $checkInDeviceUserIdentifier = $employee->device_user_identifier;
 
-AttendanceLog::query()->create([
-    'device_id' => $device->id,
-    'employee_id' => $employee->id,
-    'device_user_identifier' => $checkInDeviceUserIdentifier,
-    'device_log_id' => $checkInDeviceLogId,
-    'fingerprint' => AttendanceLog::fingerprintFor(
-        $device->id,
-        $checkInDeviceLogId,
-        $checkInDeviceUserIdentifier,
-        $checkIn->toIso8601String(),
-        $checkInPayload
-    ),
-    'scanned_at' => $checkIn,
-    'scan_type' => null,
-    'raw_payload' => $checkInPayload,
-    'processing_status' => AttendanceLog::STATUS_PENDING,
-]);
+                AttendanceLog::query()->create([
+                    'device_id' => $device->id,
+                    'employee_id' => $employee->id,
+                    'device_user_identifier' => $checkInDeviceUserIdentifier,
+                    'device_log_id' => $checkInDeviceLogId,
+                    'fingerprint' => AttendanceLog::fingerprintFor(
+                        $device->id,
+                        $checkInDeviceLogId,
+                        $checkInDeviceUserIdentifier,
+                        $checkIn->toIso8601String(),
+                        $checkInPayload
+                    ),
+                    'scanned_at' => $checkIn,
+                    'scan_type' => null,
+                    'raw_payload' => $checkInPayload,
+                    'processing_status' => AttendanceLog::STATUS_PENDING,
+                ]);
 
-// CHECK-OUT
-if (! $skipCheckOut) {
-    $checkOutPayload = [
-        'source' => 'seed',
-        'employee_code' => $employee->employee_code,
-    ];
+                // CHECK-OUT
+                if (! $skipCheckOut) {
+                    $checkOutPayload = [
+                        'source' => 'seed',
+                        'employee_code' => $employee->employee_code,
+                    ];
 
-    $checkOutDeviceLogId = sprintf(
-        'seed-%d-%s-out',
-        $employee->id,
-        $date->format('Ymd')
-    );
+                    $checkOutDeviceLogId = sprintf(
+                        'seed-%d-%s-out',
+                        $employee->id,
+                        $date->format('Ymd')
+                    );
 
-    $checkOutDeviceUserIdentifier = $employee->device_user_identifier;
+                    $checkOutDeviceUserIdentifier = $employee->device_user_identifier;
 
-    AttendanceLog::query()->create([
-        'device_id' => $device->id,
-        'employee_id' => $employee->id,
-        'device_user_identifier' => $checkOutDeviceUserIdentifier,
-        'device_log_id' => $checkOutDeviceLogId,
-        'fingerprint' => AttendanceLog::fingerprintFor(
-            $device->id,
-            $checkOutDeviceLogId,
-            $checkOutDeviceUserIdentifier,
-            $checkOut->toIso8601String(),
-            $checkOutPayload
-        ),
-        'scanned_at' => $checkOut,
-        'scan_type' => null,
-        'raw_payload' => $checkOutPayload,
-        'processing_status' => AttendanceLog::STATUS_PENDING,
-    ]);
-}
+                    AttendanceLog::query()->create([
+                        'device_id' => $device->id,
+                        'employee_id' => $employee->id,
+                        'device_user_identifier' => $checkOutDeviceUserIdentifier,
+                        'device_log_id' => $checkOutDeviceLogId,
+                        'fingerprint' => AttendanceLog::fingerprintFor(
+                            $device->id,
+                            $checkOutDeviceLogId,
+                            $checkOutDeviceUserIdentifier,
+                            $checkOut->toIso8601String(),
+                            $checkOutPayload
+                        ),
+                        'scanned_at' => $checkOut,
+                        'scan_type' => null,
+                        'raw_payload' => $checkOutPayload,
+                        'processing_status' => AttendanceLog::STATUS_PENDING,
+                    ]);
+                }
             }
         }
 

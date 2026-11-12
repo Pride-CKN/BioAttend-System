@@ -19,8 +19,9 @@ class DeviceEmployeePushServiceTest extends TestCase
     public function test_queues_one_upsert_for_each_active_device(): void
     {
         Queue::fake([PushEmployeeToDeviceJob::class]);
+        config(['zkteco.employee_push_queue' => 'device-push']);
         $employee = Employee::factory()->create([
-            'device_user_identifier' => 'EMP-1001',
+            'device_user_identifier' => '1001',
         ]);
         $firstDevice = $this->makeDevice('North Gate');
         $secondDevice = $this->makeDevice('South Gate');
@@ -46,13 +47,14 @@ class DeviceEmployeePushServiceTest extends TestCase
             'status' => DeviceEmployeePush::STATUS_PENDING,
         ]);
         Queue::assertPushed(PushEmployeeToDeviceJob::class, 2);
+        Queue::assertPushedOn('device-push', PushEmployeeToDeviceJob::class);
     }
 
     public function test_does_not_queue_an_already_successful_identical_push(): void
     {
         Queue::fake([PushEmployeeToDeviceJob::class]);
         $employee = Employee::factory()->create([
-            'device_user_identifier' => 'EMP-1002',
+            'device_user_identifier' => '1002',
         ]);
         $device = $this->makeDevice('Lobby');
 
