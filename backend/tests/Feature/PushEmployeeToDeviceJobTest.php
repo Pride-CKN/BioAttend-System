@@ -116,12 +116,12 @@ class PushEmployeeToDeviceJobTest extends TestCase
             'status' => DeviceStatus::Online,
             'is_active' => true,
         ]);
-        $employee = Employee::factory()->create(['device_user_identifier' => '1001']);
+        $employee = Employee::factory()->create(['nip' => '001001']);
 
         return DeviceEmployeePush::create([
             'device_id' => $device->id,
             'employee_id' => $employee->id,
-            'device_user_identifier' => '1001',
+            'device_user_identifier' => '001001',
             'operation' => DeviceEmployeePush::OPERATION_UPSERT,
             'payload_hash' => hash('sha256', 'push-'.$device->id.'-'.$employee->id),
             'status' => DeviceEmployeePush::STATUS_PENDING,

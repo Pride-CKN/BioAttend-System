@@ -21,7 +21,7 @@ class DeviceEmployeePushServiceTest extends TestCase
         Queue::fake([PushEmployeeToDeviceJob::class]);
         config(['zkteco.employee_push_queue' => 'device-push']);
         $employee = Employee::factory()->create([
-            'device_user_identifier' => '1001',
+            'nip' => '001001',
         ]);
         $firstDevice = $this->makeDevice('North Gate');
         $secondDevice = $this->makeDevice('South Gate');
@@ -54,7 +54,7 @@ class DeviceEmployeePushServiceTest extends TestCase
     {
         Queue::fake([PushEmployeeToDeviceJob::class]);
         $employee = Employee::factory()->create([
-            'device_user_identifier' => '1002',
+            'nip' => '001002',
         ]);
         $device = $this->makeDevice('Lobby');
 
@@ -78,22 +78,25 @@ class DeviceEmployeePushServiceTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    public function test_does_not_queue_an_upsert_without_a_device_identifier(): void
+    public function test_uses_the_nip_as_the_device_identifier(): void
     {
         Queue::fake([PushEmployeeToDeviceJob::class]);
         $employee = Employee::factory()->create([
-            'device_user_identifier' => null,
+            'nip' => '001003',
         ]);
-        $this->makeDevice('Lobby');
+        $device = $this->makeDevice('Lobby');
 
         $queued = app(DeviceEmployeePushService::class)->queueFor(
             $employee,
             DeviceEmployeePush::OPERATION_UPSERT,
         );
 
-        $this->assertSame(0, $queued);
-        $this->assertDatabaseCount('device_employee_pushes', 0);
-        Queue::assertNothingPushed();
+        $this->assertSame(1, $queued);
+        $this->assertDatabaseHas('device_employee_pushes', [
+            'device_id' => $device->id,
+            'employee_id' => $employee->id,
+            'device_user_identifier' => '001003',
+        ]);
     }
 
     private function makeDevice(string $name, bool $isActive = true): Device

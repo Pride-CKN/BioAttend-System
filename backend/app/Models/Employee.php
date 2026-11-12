@@ -2,21 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
 
 class Employee extends Model
 {
     use HasFactory;
-    
+
     /* karyawan tidak dihapus fisik, cukup dinonaktifkan */
     public const STATUS_ACTIVE = 'ACTIVE';
+
     public const STATUS_INACTIVE = 'INACTIVE';
+
     public const STATUS_RESIGNED = 'RESIGNED';
 
     protected $fillable = [
@@ -37,14 +37,23 @@ class Employee extends Model
         'photo_path',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Employee $employee): void {
+            // The device enrolls the same six-digit identifier as the NIP.
+            // Keep the legacy column for compatibility with device logs and SDK work.
+            $employee->device_user_identifier = $employee->nip;
+        });
+    }
+
     protected function casts(): array
     {
-    return [
-        'join_date' => 'date',
-        'office_id' => 'integer',
-        'division_id' => 'integer',
-        'unit_id' => 'integer',
-    ];
+        return [
+            'join_date' => 'date',
+            'office_id' => 'integer',
+            'division_id' => 'integer',
+            'unit_id' => 'integer',
+        ];
     }
 
     public function office(): BelongsTo
@@ -54,7 +63,7 @@ class Employee extends Model
 
     public function division(): BelongsTo
     {
-    return $this->belongsTo(Division::class, 'division_id');
+        return $this->belongsTo(Division::class, 'division_id');
     }
 
     public function unit(): BelongsTo
@@ -83,9 +92,9 @@ class Employee extends Model
     }
 
     public function employeeCodeHistories(): HasMany
-{
-    return $this->hasMany(EmployeeCodeHistory::class);
-}
+    {
+        return $this->hasMany(EmployeeCodeHistory::class);
+    }
 
     public function attendanceRecords(): HasMany
     {
