@@ -169,6 +169,9 @@ class DeviceSyncFlowTest extends TestCase
     {
         $fake = $this->useFakeZk();
         $fake->attendanceRows = [FakeZkDevice::punch(1, '999', '2026-11-06 08:00:00')];
+        $fake->users = [
+            '999' => ['uid' => 1, 'userid' => '999', 'name' => 'Unknown', 'role' => 0, 'password' => '', 'cardno' => '0'],
+        ];
         $device = $this->makeDevice();
 
         $this->runJob($device->id);
