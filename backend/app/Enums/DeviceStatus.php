@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum DeviceStatus: string
 {
-    case Online  = 'online';
-    case Offline = 'offline';
+    case Online = 'ONLINE';
+    case Offline = 'OFFLINE';
+    case Error = 'ERROR';
 }

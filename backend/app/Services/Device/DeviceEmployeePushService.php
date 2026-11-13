@@ -17,11 +17,14 @@ class DeviceEmployeePushService
      */
     public function queueFor(
         Employee $employee,
-        string $operation = 'UPSERT'
+        string $operation = DeviceEmployeePush::OPERATION_UPSERT
     ): int {
         $operation = strtoupper(trim($operation));
 
-        if (! in_array($operation, ['UPSERT', 'DISABLE'], true)) {
+        if (! in_array($operation, [
+            DeviceEmployeePush::OPERATION_UPSERT,
+            DeviceEmployeePush::OPERATION_DISABLE,
+        ], true)) {
             throw new InvalidArgumentException(
                 'Operasi push karyawan tidak dikenal.'
             );
@@ -34,7 +37,7 @@ class DeviceEmployeePushService
         $identifier = trim((string) $employee->device_user_identifier);
 
         // Jangan kirim karyawan tidak aktif atau PIN yang tidak valid
-        if ($operation === 'UPSERT') {
+        if ($operation === DeviceEmployeePush::OPERATION_UPSERT) {
             if (! $employee->isActive()) {
                 return 0;
             }
@@ -85,7 +88,7 @@ class DeviceEmployeePushService
             $push->save();
 
             PushEmployeeToDeviceJob::dispatch($push->id)
-                ->onQueue((string) config('zkteco.queue', 'device-sync'))
+                ->onQueue((string) config('zkteco.employee_push_queue', 'device-push'))
                 ->afterCommit();
 
             $queued++;

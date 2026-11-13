@@ -41,7 +41,10 @@ class ZKTecoSdkAdapter implements DeviceAdapter
     ): bool {
         // SDK tidak menyediakan perintah disable khusus
         // Pengguna dihapus dari daftar pengguna terminal
-        return $this->clientFor($device)->disableEmployee($employee);
+        return $this->clientFor($device)->disableEmployee(
+            $employee,
+            $deviceUserIdentifier,
+        );
     }
 
     public function disconnect(Device $device): void

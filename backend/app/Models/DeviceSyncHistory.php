@@ -8,10 +8,30 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DeviceSyncHistory extends Model
 {
     public const STATUS_RUNNING = 'RUNNING';
+
     public const STATUS_SUCCESS = 'SUCCESS';
+
     public const STATUS_PARTIAL_SUCCESS = 'PARTIAL_SUCCESS';
+
     public const STATUS_FAILED = 'FAILED';
+
     public const STATUS_TIMEOUT = 'TIMEOUT';
+
+    public const STATUS_SKIPPED = 'SKIPPED';
+
+    public const TYPE_PULL_LOGS = 'PULL_LOGS';
+
+    public const TYPE_PUSH_EMPLOYEES = 'PUSH_EMPLOYEES';
+
+    public const TYPE_HEALTH = 'HEALTH';
+
+    public const TYPE_RECONCILE = 'RECONCILE';
+
+    public const TRIGGER_SCHEDULED = 'scheduled';
+
+    public const TRIGGER_MANUAL = 'manual';
+
+    public const TRIGGER_RETRY = 'retry';
 
     protected $fillable = [
         'device_id',
