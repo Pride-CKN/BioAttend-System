@@ -56,12 +56,12 @@ class PushEmployeeToDeviceJob implements ShouldBeUnique, ShouldQueue
         try {
             $adapter->connect($device);
             $ok = match (strtoupper((string) $push->operation)) {
-                'UPSERT' => $adapter->pushEmployee(
+                DeviceEmployeePush::OPERATION_UPSERT => $adapter->pushEmployee(
                     $device,
                     $push->employee,
                     (string) $push->device_user_identifier
                 ),
-                'DISABLE' => $adapter->disableEmployee(
+                DeviceEmployeePush::OPERATION_DISABLE => $adapter->disableEmployee(
                     $device,
                     $push->employee,
                     (string) $push->device_user_identifier
