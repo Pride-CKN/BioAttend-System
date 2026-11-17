@@ -8,4 +8,15 @@ export class ApiError extends Error {
     this.status = status
     this.details = details
   }
+
+  /** Error validasi 422 per field: { email: ["..."] } */
+  get fieldErrors(): Record<string, string[]> {
+    const d = this.details as { errors?: Record<string, string[]> } | undefined
+    return d?.errors ?? {}
+  }
+
+  /** true kalau server tidak terjangkau (status 0). */
+  get isNetworkError() {
+    return this.status === 0
+  }
 }

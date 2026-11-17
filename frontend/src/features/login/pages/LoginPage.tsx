@@ -1,32 +1,35 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
 import { Eye, EyeOff, AlertCircle } from "lucide-react"
 import logoPride from "@/assets/logo-pride.png"
+import { login } from "@/features/login/auth.service"
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  // State error diubah jadi false agar tidak muncul terus menerus
-  const [error, setError] = useState(false) 
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    
-    // Simulasi pengecekan login
-    // (Nanti ganti ini dengan fetch API Laravel)
-    const form = e.target as HTMLFormElement;
-    const email = (form.elements[0] as HTMLInputElement).value;
-    const pass = (form.elements[1] as HTMLInputElement).value;
+    setError(null)
+    setIsSubmitting(true)
 
-    if (email === "stf.admin@pridechicken.co.id" && pass === "password123") {
-      setError(false)
-      navigate('/dashboard')
-    } else {
-      setError(true)
+    const formData = new FormData(e.currentTarget)
+    try {
+      await login({
+        email: String(formData.get("email") ?? ""),
+        password: String(formData.get("password") ?? ""),
+      })
+      navigate('/dashboard', { replace: true })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Gagal masuk. Silakan coba lagi.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -35,8 +38,8 @@ export default function LoginPage() {
       
       {/* PANEL KIRI: Branding (Merah Kustom) */}
       <div className="hidden md:flex md:w-1/2 bg-[#EA232A] relative flex-col justify-center p-8 lg:p-16 xl:p-24 text-white">
-        <div className="absolute top-[-10%] left-[-10%] w-[400px] h-[400px] bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-black/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-100 h-100 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-125 h-125 bg-black/10 rounded-full blur-3xl"></div>
         
         <div className="relative z-10 max-w-lg">
           <div className="flex items-center gap-4 mb-8">
@@ -75,8 +78,8 @@ export default function LoginPage() {
           {error && (
             <Alert variant="destructive" className="bg-[#EA232A]/10 text-[#EA232A] border-[#EA232A]/20">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Username atau password salah</AlertTitle>
-              <AlertDescription>Sisa percobaan: 4 kali. Percobaan login dibatasi.</AlertDescription>
+              <AlertTitle>Login gagal</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
@@ -85,8 +88,8 @@ export default function LoginPage() {
               <label className="text-sm font-medium text-[#080808]">Username / Email</label>
               <Input 
                 type="email" 
-                placeholder="stf.admin@pridechicken.co.id" 
-                defaultValue="stf.admin@pridechicken.co.id" 
+                name="email"
+                placeholder="nama@perusahaan.co.id" 
                 className="h-11 border-[#616161]/30 focus-visible:ring-[#EA232A]" 
                 required
               />
@@ -97,8 +100,8 @@ export default function LoginPage() {
               <div className="relative">
                 <Input 
                   type={showPassword ? "text" : "password"} 
+                  name="password"
                   placeholder="••••••••" 
-                  defaultValue="password123" 
                   className="h-11 pr-10 border-[#616161]/30 focus-visible:ring-[#EA232A]"
                   required
                 />
@@ -124,8 +127,8 @@ export default function LoginPage() {
               </a>
             </div>
 
-            <Button type="submit" className="w-full h-11 bg-[#EA232A] hover:bg-[#852622] text-white text-base">
-              Login
+            <Button type="submit" disabled={isSubmitting} className="w-full h-11 bg-[#EA232A] hover:bg-[#852622] text-white text-base">
+              {isSubmitting ? "Memproses..." : "Login"}
             </Button>
           </form>
 
@@ -143,7 +146,7 @@ export default function LoginPage() {
           </Button>
 
           <div className="text-center text-xs text-[#616161] space-y-2 pt-4">
-            <p></p>
+            <p>🔒 Terenkripsi AES-256 • HTTPS/TLS 1.3 • Aktivitas login tercatat Audit Log</p>
             <p>© 2026 PT Pride Chicken • <a href="#" className="underline hover:text-[#EA232A]">Kebijakan Privasi</a> • <a href="#" className="underline hover:text-[#EA232A]">Hubungi HRD</a></p>
           </div>
 
