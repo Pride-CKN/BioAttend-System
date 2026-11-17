@@ -18,8 +18,8 @@ class EmployeeCodeGeneratorServiceTest extends TestCase
     public function test_generates_six_digit_employee_code(): void
     {
         $office = Office::query()
-    ->where('code', '1')
-    ->firstOrFail();
+            ->where('code', '1')
+            ->firstOrFail();
 
         $division = Division::create([
             'code' => 'IND',
@@ -69,10 +69,50 @@ class EmployeeCodeGeneratorServiceTest extends TestCase
         ]);
 
         $this->assertSame(1, EmployeeCodeHistory::count());
-
-        
     }
-    
+
+    public function test_uses_nip_as_employee_and_device_identifier_when_auto_generation_is_disabled(): void
+    {
+        $office = Office::query()
+            ->where('code', '1')
+            ->firstOrFail();
+
+        $division = Division::create([
+            'code' => 'IND',
+            'name' => 'Industrial',
+            'employee_code_digit' => 1,
+            'is_active' => true,
+        ]);
+
+        $unit = Unit::create([
+            'code' => 'PRO',
+            'name' => 'Produksi',
+            'division_id' => $division->id,
+            'employee_code_digit' => 1,
+            'is_active' => true,
+        ]);
+
+        $employee = Employee::create([
+            'nip' => '111001',
+            'full_name' => 'Karyawan Manual',
+            'employment_status' => Employee::STATUS_ACTIVE,
+        ]);
+
+        $result = app(EmployeeCodeGeneratorService::class)
+            ->assignOrChange(
+                employee: $employee,
+                officeId: $office->id,
+                divisionId: $division->id,
+                unitId: $unit->id,
+                autoGenerateEmployeeCode: false,
+            );
+
+        $this->assertSame('111001', $result->employee_code);
+        $this->assertSame('111001', $result->nip);
+        $this->assertSame('111001', $result->device_user_identifier);
+        $this->assertSame(0, EmployeeCodeHistory::count());
+    }
+
     public function test_generates_new_code_and_closes_old_history_when_employee_moves_unit(): void
     {
         $office = Office::query()
@@ -151,5 +191,4 @@ class EmployeeCodeGeneratorServiceTest extends TestCase
             EmployeeCodeHistory::where('employee_id', $employee->id)->count()
         );
     }
-
 }

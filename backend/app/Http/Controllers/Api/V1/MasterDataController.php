@@ -148,6 +148,14 @@ class MasterDataController extends Controller
 
         $query = $modelClass::query();
 
+        $counts = [
+            'positions' => ['employees as employees_count' => fn ($q) => $q->where('is_active', true)],
+        ];
+
+        if (isset($counts[$resource])) {
+            $query->withCount($counts[$resource]);
+        }
+
         if ($q = $request->query('q')) {
             $query->where(fn ($sub) => collect($searchFields)->each(
                 fn ($field) => $sub->orWhere($field, 'ilike', "%{$q}%")

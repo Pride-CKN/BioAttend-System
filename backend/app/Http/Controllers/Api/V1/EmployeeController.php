@@ -68,6 +68,7 @@ class EmployeeController extends Controller
         $data = $request->validate([
             'nip' => ['required', 'string', 'regex:/\A[0-9]{6}\z/', 'unique:employees,nip'],
             'device_user_identifier' => ['prohibited'],
+            'auto_generate_employee_code' => ['sometimes', 'boolean'],
             'full_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
@@ -111,6 +112,7 @@ class EmployeeController extends Controller
                     reason: $data['reason'] ?? 'Pembuatan data karyawan',
                     createdBy: request()->user()?->getAuthIdentifier(),
                     effectiveFrom: $data['effective_from'] ?? now()->toDateString(),
+                    autoGenerateEmployeeCode: (bool) ($data['auto_generate_employee_code'] ?? true),
                 );
         }, 3);
 

@@ -23,6 +23,7 @@ class EmployeeCodeGeneratorService
         ?string $reason = null,
         ?int $createdBy = null,
         ?string $effectiveFrom = null,
+        bool $autoGenerateEmployeeCode = true,
     ): Employee {
         return DB::transaction(function () use (
             $employee,
@@ -31,7 +32,8 @@ class EmployeeCodeGeneratorService
             $unitId,
             $reason,
             $createdBy,
-            $effectiveFrom
+            $effectiveFrom,
+            $autoGenerateEmployeeCode
         ): Employee {
             // Kunci employee
             $employee = Employee::query()
@@ -131,6 +133,36 @@ class EmployeeCodeGeneratorService
                         'unit_id' => 'Divisi ini memiliki unit. Silakan pilih unit karyawan.',
                     ]);
                 }
+            }
+
+            if (! $autoGenerateEmployeeCode) {
+                $codeAlreadyUsed = Employee::query()
+                    ->where('employee_code', $employee->nip)
+                    ->whereKeyNot($employee->id)
+                    ->exists()
+                    || EmployeeCodeHistory::query()
+                        ->where('employee_code', $employee->nip)
+                        ->exists();
+
+                if ($codeAlreadyUsed) {
+                    throw ValidationException::withMessages([
+                        'nip' => 'NIP sudah pernah digunakan sebagai Employee ID.',
+                    ]);
+                }
+
+                $employee->forceFill([
+                    'office_id' => $office->id,
+                    'division_id' => $division->id,
+                    'unit_id' => $unit?->id,
+                    'employee_code' => $employee->nip,
+                ])->save();
+
+                return $employee->fresh([
+                    'office',
+                    'division',
+                    'unit',
+                    'employeeCodeHistories',
+                ]);
             }
 
             // Validasi tanggal efektif
