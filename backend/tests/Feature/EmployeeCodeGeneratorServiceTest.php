@@ -52,10 +52,14 @@ class EmployeeCodeGeneratorServiceTest extends TestCase
             );
 
         $this->assertSame('111001', $result->employee_code);
+        $this->assertSame('111001', $result->nip);
+        $this->assertSame('111001', $result->device_user_identifier);
 
         $this->assertDatabaseHas('employees', [
             'id' => $employee->id,
             'employee_code' => '111001',
+            'nip' => '111001',
+            'device_user_identifier' => '111001',
         ]);
 
         $this->assertDatabaseHas('employee_code_histories', [
@@ -160,6 +164,8 @@ class EmployeeCodeGeneratorServiceTest extends TestCase
         );
 
         $this->assertSame('111001', $firstResult->employee_code);
+        $this->assertSame('111001', $firstResult->nip);
+        $this->assertSame('111001', $firstResult->device_user_identifier);
 
         // Pindah ke Pergudangan mulai 1 Desember.
         $secondResult = $service->assignOrChange(
@@ -171,6 +177,8 @@ class EmployeeCodeGeneratorServiceTest extends TestCase
         );
 
         $this->assertSame('112001', $secondResult->employee_code);
+        $this->assertSame('112001', $secondResult->nip);
+        $this->assertSame('112001', $secondResult->device_user_identifier);
 
         $this->assertDatabaseHas('employee_code_histories', [
             'employee_id' => $employee->id,

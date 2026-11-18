@@ -155,6 +155,7 @@ class EmployeeCodeGeneratorService
                     'division_id' => $division->id,
                     'unit_id' => $unit?->id,
                     'employee_code' => $employee->nip,
+                    'nip' => $employee->nip,
                 ])->save();
 
                 return $employee->fresh([
@@ -239,12 +240,18 @@ class EmployeeCodeGeneratorService
                 ->where('employee_code', 'like', $prefix.'%')
                 ->pluck('employee_code');
 
-            $currentCodes = Employee::query()
-                ->where('employee_code', 'like', $prefix.'%')
-                ->pluck('employee_code');
+            $currentIdentifiers = Employee::query()
+                ->where(function ($query) use ($prefix): void {
+                    $query->where('employee_code', 'like', $prefix.'%')
+                        ->orWhere('nip', 'like', $prefix.'%')
+                        ->orWhere('device_user_identifier', 'like', $prefix.'%');
+                })
+                ->get(['employee_code', 'nip', 'device_user_identifier']);
 
             $usedCodes = $historyCodes
-                ->merge($currentCodes)
+                ->merge($currentIdentifiers->pluck('employee_code'))
+                ->merge($currentIdentifiers->pluck('nip'))
+                ->merge($currentIdentifiers->pluck('device_user_identifier'))
                 ->unique();
 
             $maxSequence = 0;
@@ -289,6 +296,7 @@ class EmployeeCodeGeneratorService
                 'division_id' => $division->id,
                 'unit_id' => $unit?->id,
                 'employee_code' => $newCode,
+                'nip' => $newCode,
             ])->save();
 
             // Simpan histori Employee ID baru
