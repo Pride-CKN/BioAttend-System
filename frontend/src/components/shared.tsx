@@ -2,8 +2,9 @@ import { memo } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { initials, pageWindow, primaryBtn, statusClass } from "@/features/employee/lib/format"
+import { initials, pageWindow, primaryBtn, statusClass } from "@/lib/format"
 import type { Employee } from "@/features/employee/employee.type"
+import { Switch } from "@/components/ui/switch"
 
 export const StatusBadge = memo(function StatusBadge({ status }: { status: string }) {
   // Keep status presentation consistent across employee, attendance, and correction tables.
@@ -31,12 +32,16 @@ export type RowActionHandlers = {
   onDelete: (e: Employee) => void
 }
 
-export const RowActions = memo(function RowActions({ emp, onView, onEdit, onDelete }: { emp: Employee } & RowActionHandlers) {
+export const RowActions = memo(function RowActions({ emp, onView, onDelete }: { emp: Employee } & RowActionHandlers) {
   return (
     <div className="flex justify-end gap-1">
-      <Button size="sm" variant="ghost" onClick={() => onView(emp)}>Lihat</Button>
-      <Button size="sm" variant="outline" onClick={() => onEdit(emp)}>Edit</Button>
-      <Button size="sm" variant="ghost" className="text-red-700 hover:text-red-800" onClick={() => onDelete(emp)}>Hapus</Button>
+      <Button size="sm" variant="outline" onClick={() => onView(emp)}>Detail</Button>
+      <Switch
+        size="default"
+        checked={emp.employmentStatus === "ACTIVE"}
+        onCheckedChange={() => onDelete(emp)}
+        aria-label={emp.employmentStatus === "ACTIVE" ? `Nonaktifkan ${emp.full_name}` : `Aktifkan ${emp.full_name}`}
+      />
     </div>
   )
 })

@@ -2,10 +2,10 @@ import { useCallback, useMemo } from "react"
 import { useNavigate } from "react-router"
 import { useAsync } from "@/hooks/useAsync"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
-import { employeeService } from "@/features/employee/employee.Service"
-import { useEmployeeListStore } from "@/features/employee/employeeList.store"
+import { employeeService } from "@/features/employee/services/employee.api.Service"
+import { useEmployeeListStore } from "@/features/employee/stores/employeeList.store"
 import { PAGE_SIZE } from "@/features/employee/lib/employee.Option"
-import type { BulkAction, Employee } from "@/features/employee/employee.type"
+import type { BulkAction, Employee } from "@/features/employee/types/employee.type"
 
 export function useEmployeeList() {
   const navigate = useNavigate()
@@ -25,6 +25,7 @@ export function useEmployeeList() {
 
   const list = useAsync(() => employeeService.list(query), [query])
   const stats = useAsync(() => employeeService.stats(), [])
+  const options = useAsync(() => employeeService.getFormOptions(), [])
 
   const items = list.data?.items ?? []
   const allSelected = items.length > 0 && items.every((e) => selected.has(e.id))
@@ -46,7 +47,7 @@ export function useEmployeeList() {
       onView: (e: Employee) => navigate(`/employee/${e.id}`),
       onEdit: (e: Employee) => navigate(`/employee/${e.id}/edit`),
       onDelete: async (e: Employee) => {
-        await employeeService.remove([e.id])
+        await employeeService.bulk(e.employmentStatus === "ACTIVE" ? "nonaktifkan" : "aktifkan", [e.id])
         refresh()
       },
     }),
@@ -74,6 +75,7 @@ export function useEmployeeList() {
     loading: list.loading,
     error: list.error,
     stats: stats.data,
+    options: options.data,
     view, setView,
     selected, allSelected, toggleAll, toggleOne, clearSelection,
     actions,

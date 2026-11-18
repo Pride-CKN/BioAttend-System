@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatDateID, supervisorLabel } from "@/seeds/employee"
 import { shiftHours } from "@/features/employee/lib/employee.Option"
-import { initials, primaryBtn, statusClass } from "@/features/employee/lib/format"
+import { initials, primaryBtn, statusClass } from "@/lib/format"
 import type { EmployeeDetail } from "@/features/employee/employee.type"
 
 export function Chip({ className, children }: { className: string; children: React.ReactNode }) {

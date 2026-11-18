@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import type { BulkAction } from "@/features/employee/employee.type"
+import type { BulkAction } from "@/features/employee/types/employee.type"
 
 export function EmployeeBulkBar({
   count, onAction, onClear,
@@ -11,7 +11,6 @@ export function EmployeeBulkBar({
       <Button size="sm" variant="outline" onClick={() => onAction("aktifkan")}>Aktifkan</Button>
       <Button size="sm" variant="outline" onClick={() => onAction("nonaktifkan")}>Nonaktifkan</Button>
       <Button size="sm" variant="outline" onClick={() => onAction("export")}>Export terpilih</Button>
-      <Button size="sm" variant="destructive" onClick={() => onAction("hapus")}>Hapus</Button>
       <Button size="sm" variant="ghost" onClick={onClear}>Batal</Button>
     </div>
   )

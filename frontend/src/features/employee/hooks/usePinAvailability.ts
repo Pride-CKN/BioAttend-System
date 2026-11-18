@@ -1,6 +1,6 @@
 import { useAsync } from "@/hooks/useAsync"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
-import { employeeService } from "@/features/employee/employee.Service"
+import { employeeService } from "@/features/employee/services/employee.api.Service"
 
 export function usePinAvailability(pin: string, exceptId?: string) {
   const debounced = useDebouncedValue(pin, 300)
