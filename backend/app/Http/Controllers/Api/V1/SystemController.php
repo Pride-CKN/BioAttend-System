@@ -46,6 +46,7 @@ class SystemController extends Controller
         $period = now()->format('Y-m');
 
         $request->validate([
+            'division_id' => 'nullable|integer|exists:employees,id',
             'position_id' => 'nullable|integer|exists:employees,id',
             'sort_by' => ['nullable', 'in:nip,name,position,check_in,check_out,work_duration_minutes,status'],
             'sort_dir' => ['nullable', 'in:asc,desc'],
@@ -53,6 +54,7 @@ class SystemController extends Controller
 
         $base = fn () => Employee::query()
         ->where('employees.employment_status', Employee::STATUS_ACTIVE)
+        ->leftJoin('divisions as d', 'd.id', '=', 'employees.division_id')
         ->leftJoin('positions as p', 'p.id', '=', 'employees.position_id')
         ->leftJoin('attendance_records as ar', function ($join) use ($today) {
             $join->on('ar.employee_id', '=', 'employees.id')
@@ -63,7 +65,8 @@ class SystemController extends Controller
             'employees.nip',
             'employees.full_name',
             'employees.position_id',
-            'p.name as position_name',
+            'd.name as division',
+            'p.name as position',
             'ar.check_in_at as check_in',
             'ar.check_out_at as check_out',
             'ar.work_duration_minutes',
@@ -74,6 +77,7 @@ class SystemController extends Controller
         $sortMap = [
             'nip' => 'employees.nip',
             'name' => 'employees.full_name',
+            'division' => 'd.name',
             'position' => 'p.name',
             'check_in' => 'ar.check_in_at',
             'check_out' => 'ar.check_out_at',
@@ -108,7 +112,8 @@ class SystemController extends Controller
                     'employee_id' => $r->employee_id,
                     'nip' => $r->nip,
                     'full_name' => $r->full_name,
-                    'position_name' => $r->position_name,
+                    'division' => $r->division,
+                    'position' => $r->position,
                     'check_in' => $r->check_in,
                     'check_out' => $r->check_out,
                     'work_duration_minutes' => $r->work_duration_minutes,

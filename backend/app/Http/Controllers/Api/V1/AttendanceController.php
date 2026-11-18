@@ -33,16 +33,18 @@ class AttendanceController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
             'employee_id' => 'nullable|integer|exists:employees,id',
             'division_id' => 'nullable|integer|exists:divisions,id',
+            'position_id' => 'nullable|integer|exists:positions,id',
             'status' => 'nullable|string',
         ]);
 
         $employeeIds = $this->employeesQuery()
             ->when($data['employee_id'] ?? null, fn ($q, $id) => $q->where('id', $id))
             ->when($data['division_id'] ?? null, fn ($q, $id) => $q->where('division_id', $id))
+            ->when($data['position_id'] ?? null, fn ($q, $id) => $q->where('position_id', $id))
             ->pluck('id');
 
         $query = AttendanceRecord::query()
-            ->with(['employee:id,nip,full_name,division_id', 'employee.division:id,name', 'shift'])
+            ->with(['employee:id,nip,full_name,division_id,position_id', 'employee.division:id,name', 'employee.position:id,name', 'shift'])
             ->whereIn('employee_id', $employeeIds)
             ->whereBetween('work_date', [$data['start_date'], $data['end_date']])
             ->when($data['status'] ?? null, fn ($q, $s) => $q->where('status', $s));
