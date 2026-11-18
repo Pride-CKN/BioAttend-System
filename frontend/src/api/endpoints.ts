@@ -20,4 +20,16 @@ export const apiEndpoints = {
   authSessions: "/auth/sessions",
   authSession: (id: string) =>
     `/auth/sessions/${encodeURIComponent(id)}`,
+
+  // Employees
+  employees: "/employees",
+  employeesRegister: "/employees/register",
+  employeesImport: "/employees/import",
+  employee: (id: string) =>
+    `/employees/${encodeURIComponent(id)}`,
+
+  // Master Data
+  master: (resource: string) => `/master/${resource}`,
+  masterItem: (resource: string, id: string | number) =>
+    `/master/${resource}/${encodeURIComponent(String(id))}`,
 } as const

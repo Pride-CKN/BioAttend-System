@@ -1,20 +1,19 @@
 import { useState } from "react"
-import { Link, useParams } from "react-router"
+import { useParams } from "react-router"
+import { Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { useEmployeeDetail } from "@/features/employee/hooks/useEmployeeDetails"
 import { useEmployeeForm } from "@/features/employee/hooks/useEmployeeForm"
-import { AccountSection, AttendanceSection, IdentitySection, PlacementSection } from "@/features/employee/components/form/formSections"
-import { DocumentsCard, PhotoCard, ValidationCard } from "@/features/employee/components/form/formSidebar"
-import { NotFoundEmployee, PageLoading } from "@/features/employee/components/notFoundEmployee"
-import { primaryBtn } from "@/features/employee/lib/format"
-import type { EmployeeDetail } from "@/features/employee/employee.type"
+import { AccountSection, IdentitySection, PlacementSection } from "@/features/employee/components/form/employeeFormSections"
+import { NotFoundEmployee, PageLoading } from "@/NotFoundPage"
+import type { EmployeeDetail } from "@/features/employee/types/employee.type"
+import { PageBreadcrumb } from "@/components/page-breadcrumb"
 
 const formTabs = [
-  { label: "Data Pribadi", target: "sec-identitas" },
-  { label: "Data Kepegawaian", target: "sec-penempatan" },
-  { label: "Absensi & PIN", target: "sec-absensi" },
-  { label: "Dokumen", target: "sec-dokumen" },
-  { label: "Akun & Akses", target: "sec-kontak" },
+  { label: "Identitas", target: "sec-identitas" },
+  { label: "Kontak & Akun", target: "sec-kontak" },
+  { label: "Penempatan", target: "sec-penempatan" },
 ]
 
 export default function EmployeeForm() {
@@ -34,19 +33,31 @@ function EmployeeFormView({ detail }: { detail: EmployeeDetail | null }) {
     setActiveTab(label)
     document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
-  const section = { form: f.form, errors: f.errors, set: f.set, isEdit: f.isEdit, employeeId: f.employeeId }
+  const section = {
+    form: f.form,
+    errors: f.errors,
+    set: f.set,
+    options: f.options,
+    isEdit: f.isEdit,
+    changeOffice: f.changeOffice,
+    changeDivision: f.changeDivision,
+    changeUnit: f.changeUnit,
+    changePosition: f.changePosition,
+    changeManager: f.changeManager,
+  }
 
   return (
     <div className="@container min-h-screen min-w-0 flex-1 bg-slate-50">
       <div className="space-y-3 p-3 sm:space-y-4 sm:p-4 lg:p-6 2xl:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs text-muted-foreground">
-              Dashboard / Master Data / <Link to="/employee" className="hover:underline">Employee</Link> /{" "}
-              <span className="font-semibold text-foreground">{f.isEdit ? "Edit" : "Tambah"}</span>
-            </p>
+              <PageBreadcrumb items={[
+                { label: "Dashboard"},
+                { label: "Karyawan", to: "/employee" },
+                { label: f.isEdit ? "Edit" : "Tambah" }
+              ]} className="mb-1" />
             <h1 className="text-xl font-bold">{f.isEdit ? "Edit Karyawan" : "Tambah Karyawan"}</h1>
-            <p className="text-xs text-muted-foreground">Form master karyawan: identitas, penempatan kerja, dan enrollment fingerprint</p>
+            <p className="text-xs text-muted-foreground">Data identitas, kontak, dan penempatan kerja karyawan.</p>
           </div>
           <Button size="sm" variant="outline" onClick={f.cancel}>Batal</Button>
         </div>
@@ -72,25 +83,31 @@ function EmployeeFormView({ detail }: { detail: EmployeeDetail | null }) {
           </div>
         )}
 
+        {f.activation && <Card className="border-emerald-200 bg-emerald-50">
+          <CardContent className="space-y-2 p-4">
+            <p className="text-sm font-semibold text-emerald-900">Akun berhasil dibuat. Salin token aktivasi sebelum meninggalkan halaman.</p>
+            <code className="block break-all rounded-md border border-emerald-200 bg-white p-3 text-xs">{f.activation.token}</code>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-emerald-800">Berlaku sampai {new Date(f.activation.expiresAt).toLocaleString("id-ID")}</span>
+              <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(f.activation!.token)}><Copy />Salin token</Button>
+            </div>
+          </CardContent>
+        </Card>}
+
         <div className="grid items-start gap-3 @4xl:grid-cols-[1fr_340px] sm:gap-4">
           <div className="space-y-3 sm:space-y-4">
+            {f.optionsError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{f.optionsError}</p>}
             <IdentitySection {...section} />
             <AccountSection {...section} />
-            <PlacementSection {...section} changeDepartment={f.changeDepartment} />
-            <AttendanceSection {...section} />
+            <PlacementSection {...section} />
           </div>
-          <aside className="space-y-3 sm:space-y-4">
-            <PhotoCard name={f.form.nama} />
-            <DocumentsCard isEdit={f.isEdit} />
-            <ValidationCard pin={f.form.pin} email={f.form.email} pinOwner={f.pinOwner} placementValid={f.placementValid} />
-          </aside>
         </div>
       </div>
 
       <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t bg-slate-50/95 px-4 py-3 backdrop-blur sm:px-6">
         <Button size="sm" variant="outline" onClick={f.cancel}>Batal</Button>
-        <Button size="sm" variant="outline" disabled={f.saving} onClick={() => f.save("draft")}>Simpan sebagai Draft</Button>
-        <Button size="sm" className={primaryBtn} disabled={f.saving} onClick={() => f.save("aktif")}>✓ Simpan &amp; Aktifkan</Button>
+        <Button size="sm" variant="outline" disabled={f.saving} onClick={() => f.save("draft")}>Simpan Nonaktif</Button>
+        <Button size="sm" variant="outline" disabled={f.saving} onClick={() => f.save("aktif")}>✓ Simpan &amp; Aktifkan</Button>
       </div>
     </div>
   )

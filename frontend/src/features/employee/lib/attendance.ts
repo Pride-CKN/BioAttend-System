@@ -1,5 +1,5 @@
 import type { AttendanceRow } from "@/features/employee/employee.type"
-import { toMinutes } from "@/features/employee/lib/format"
+import { toMinutes } from "@/lib/format"
 
 export function describeAttendance(row: AttendanceRow) {
   if (!row.masuk || !row.keluar) return { durasi: "—", late: 0, note: row.catatan ?? "—" }

@@ -2,14 +2,14 @@ import { useRef, useState, type DragEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { useEmployeeDocuments } from "@/features/employee/hooks/useEmployeeDocuments"
 import { usePhotoUpload } from "@/features/employee/hooks/usePhotoUpload"
-import type { Employee } from "@/features/employee/employee.type"
+import type { Employee } from "@/features/employee/types/employee.type"
 import { Notice, Pill, SideCard } from "@/features/employee/components/form/formFields"
 
-export function PhotoCard({ name }: { name: string }) {
+export function PhotoCard({ full_name }: { full_name: string }) {
   const { photo, error, accept } = usePhotoUpload()
   const [dragging, setDragging] = useState(false)
   const input = useRef<HTMLInputElement>(null)
-  const initials = name.split(" ").filter(Boolean).map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const initials = full_name.split(" ").filter(Boolean).map((n) => n[0]).join("").slice(0, 2).toUpperCase()
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -76,7 +76,7 @@ export function ValidationCard({
     <SideCard title="Validasi" hint="Wajib lolos sebelum simpan">
       <div className="space-y-2 p-4">
         {pinOwner ? (
-          <Notice tone="error" title="PIN fingerprint sudah digunakan">PIN {pin} telah terdaftar pada karyawan lain ({pinOwner.name}).</Notice>
+          <Notice tone="error" title="PIN fingerprint sudah digunakan">PIN {pin} telah terdaftar pada karyawan lain ({pinOwner.full_name}).</Notice>
         ) : pin ? (
           <Notice tone="ok" title="PIN fingerprint tersedia">PIN {pin} belum dipakai karyawan lain.</Notice>
         ) : (
@@ -88,17 +88,17 @@ export function ValidationCard({
             {verifySent ? (
               "Email verifikasi sudah dikirim ke karyawan."
             ) : (
-              <button type="button" className="underline" onClick={() => { console.log("Kirim verifikasi ke", email); setVerifySent(true) }}>
+              <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => { console.log("Kirim verifikasi ke", email); setVerifySent(true) }}>
                 Kirim email verifikasi ke karyawan.
-              </button>
+              </Button>
             )}
           </Notice>
         )}
 
         {placementValid ? (
-          <Notice tone="ok" title="Data kepegawaian valid">Department, division, dan position sudah konsisten.</Notice>
+          <Notice tone="ok" title="Data kepegawaian valid">Division, unit, dan position sudah konsisten.</Notice>
         ) : (
-          <Notice tone="error" title="Data kepegawaian tidak konsisten">Periksa kembali department, division, dan position.</Notice>
+          <Notice tone="error" title="Data kepegawaian tidak konsisten">Periksa kembali division, unit, dan position.</Notice>
         )}
       </div>
     </SideCard>
