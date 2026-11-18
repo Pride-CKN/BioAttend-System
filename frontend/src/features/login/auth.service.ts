@@ -56,21 +56,8 @@ export async function activateAccount(payload: ActivateAccountPayload) {
 }
 
 export async function changePassword(payload: ChangePasswordPayload) {
-  const res = await apiPost<{ message?: string; user?: AuthUser }>(
-    apiEndpoints.authChangePassword,
-    payload
-  )
-
-  // Clear must_change_password flag in local auth store if user is loaded
-  const store = useAuthStore.getState()
-  if (store.user) {
-    const updatedUser: AuthUser = res?.user ?? {
-      ...store.user,
-      must_change_password: false,
-    }
-    store.login(store.token!, store.expiresAt ?? null, updatedUser)
-  }
-
+  const res = await apiPost<null>(apiEndpoints.authChangePassword, payload)
+  useAuthStore.getState().logout()
   return res
 }
 

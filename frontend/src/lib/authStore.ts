@@ -1,4 +1,3 @@
-import type { Employee } from "@/features/employee/employee.type"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
@@ -32,7 +31,7 @@ interface AuthState {
   token: string | null
   expiresAt: number | null // epoch ms, computed from expires_in at login
   user: AuthUser | null
-  login: (token: string, expiresInSeconds?: number | null, employee?: Employee | null) => void
+  login: (token: string, expiresInSeconds?: number | null, user?: AuthUser | null) => void
   logout: () => void
   isExpired: () => boolean
 }
@@ -56,7 +55,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         clearTimeout(expiryTimer)
-        set({ token: null, expiresAt: null })
+        set({ token: null, expiresAt: null, user: null })
       },
 
       isExpired: () => {
@@ -66,6 +65,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth",
+      // temp before sanctum cookies
       storage: createJSONStorage(() => sessionStorage),
       partialize: (s): PersistedAuth => ({ token: s.token, expiresAt: s.expiresAt, user: s.user }),
       // Runs on page load: discard the saved token if it already expired
@@ -77,7 +77,12 @@ export const useAuthStore = create<AuthState>()(
         }
         return { ...current, token: saved.token, expiresAt: saved.expiresAt ?? null, user: saved.user ?? null, }
       },
+      onRehydrateStorage: () => () => {
+        // store may not be assigned yet when storage is sync
+        queueMicrotask(scheduleExpiry)
+      },
     },
+    
   ),
 )
 
@@ -102,11 +107,16 @@ function scheduleExpiry() {
   if (expiresAt === null) return
 
   const remaining = expiresAt - EXPIRY_SKEW_MS - Date.now()
-  if (remaining <= 0) {
-    logout()
-    return
+  if (remaining <= 0) {    
+      logout()
+      return
   }
   expiryTimer = setTimeout(scheduleExpiry, Math.min(remaining, MAX_TIMEOUT_MS))
+  if (typeof document !== "undefined") {
+    const recheck = () => {
+      if (document.visibilityState === "visible") scheduleExpiry()
+    }
+    document.addEventListener("visibilitychange", recheck)
+    window.addEventListener("focus", recheck)
+  }
 }
-
-scheduleExpiry() // arm the timer for a token restored after refresh

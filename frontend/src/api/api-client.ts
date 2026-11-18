@@ -85,6 +85,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<ApiErrorResponse>) => {
+    if (axios.isCancel(error)) throw error
     if (!error.response) {
       const message =
         error.code === "ECONNABORTED"
@@ -98,8 +99,10 @@ apiClient.interceptors.response.use(
 
     // Only log out if this request actually carried a token.
     // A 401 from the login endpoint (wrong password) must not trigger it.
-    if (status === 401 && error.config?.headers?.Authorization) {
-      useAuthStore.getState().logout();
+    const sent = error.config?.headers?.Authorization
+    const current = useAuthStore.getState().token
+    if (status === 401 && sent && sent === `Bearer ${current}`) {
+      useAuthStore.getState().logout()
     }
 
     const firstFieldError =
@@ -143,8 +146,8 @@ export const apiGet = <T>(endpoint: string, options?: ApiRequestOptions) => {
   const { query, ...config } = options ?? {};
   return unwrap<T>(
     apiClient.get<ApiSuccessResponse<T>>(endpoint, {
-      params: query,
       ...config,
+      params: query,
     }),
   );
 };
@@ -156,8 +159,8 @@ export const apiGetPaginated = <T>(
   const { query, ...config } = options ?? {};
   return unwrapPaginated<T>(
     apiClient.get<ApiPaginatedResponse<T>>(endpoint, {
-      params: query,
       ...config,
+      params: query,
     }),
   );
 };

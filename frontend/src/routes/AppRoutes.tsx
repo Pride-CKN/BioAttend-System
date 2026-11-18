@@ -13,9 +13,10 @@ import { menuGroups } from "@/config/navigation";
 const EmployeeForm = lazy(() => import("@/features/employee/employeeForm"));
 const EmployeeDetail = lazy(() => import("@/features/employee/employeeDetail"));
 const DivisionForm = lazy(() => import("@/features/department/departmentForm"));
-function LoginRoute() {
-  const isAuthenticated = useAuthStore((state) => Boolean(state.token) && !state.isExpired());
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <AuthPage />;
+
+function GuestOnly({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => Boolean(s.token) && !s.isExpired())
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <>{children}</>
 }
 
 export default function AppRoutes() {
@@ -26,8 +27,8 @@ export default function AppRoutes() {
     <Routes>
       {/* Public Login Route */}
       <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<LoginRoute />} />
-      <Route path="/activate" element={<ActivateAccountPage />} />
+      <Route path="/login" element={<GuestOnly><AuthPage /></GuestOnly>} />
+      <Route path="/activate" element={<GuestOnly><ActivateAccountPage /></GuestOnly>} />
 
       {/* Protected Layout Routes */}
       <Route path="/change-password" element={<RequireAuth><ChangePasswordPage /></RequireAuth>} />
@@ -44,8 +45,8 @@ export default function AppRoutes() {
         <Route path="/employee/:id/edit" element={<EmployeeForm />} />
         <Route path="/division/new" element={<DivisionForm />} />
         <Route path="/division/:id/edit" element={<DivisionForm />} />
-        <Route path="/department/new" element={<DivisionForm />} />
-        <Route path="/department/:id/edit" element={<DivisionForm />} />
+        <Route path="/division/new" element={<DivisionForm />} />
+        <Route path="/division/:id/edit" element={<DivisionForm />} />
       </Route>
 
       {/* 404 Catch-All */}
