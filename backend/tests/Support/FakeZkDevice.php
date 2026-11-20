@@ -9,7 +9,7 @@ class FakeZkDevice
     /** @var list<array<string,mixed>> */
     public array $attendanceRows = [];
 
-    /** @var array<string, array{uid:int,userid:string,name:string,role:int,password:string,cardno:string}> */
+    /** @var array<string, array{uid:int,user_id:string,name:string,role:int,password:string,card_no:int}> */
     public array $users = [];
 
     public string $firmware = 'Ver 6.60 Apr 14 2020';
@@ -24,7 +24,7 @@ class FakeZkDevice
         return $this->connectable;
     }
 
-    public function version(): string
+    public function getVersion(): string
     {
         return $this->firmware;
     }
@@ -43,19 +43,17 @@ class FakeZkDevice
         return true;
     }
 
-    public function getAttendance(): array
+    public function getAttendanceStructured(): array|false
     {
-        $this->calls[] = 'getAttendance';
+        $this->calls[] = 'getAttendanceStructured';
 
         return $this->attendanceRows;
     }
 
-    /**
-     * @return array<string, array{uid:int,userid:string,name:string,role:int,password:string,cardno:string}>
-     */
-    public function getUser(): array
+    /** @return array<string, array{uid:int,user_id:string,name:string,role:int,password:string,card_no:int}> */
+    public function getUsersStructured(): array|false
     {
-        $this->calls[] = 'getUser';
+        $this->calls[] = 'getUsersStructured';
 
         return $this->users;
     }
@@ -66,30 +64,30 @@ class FakeZkDevice
         string $name,
         string $password,
         int $role = 0,
-        string|int $cardno = 0,
-    ): bool {
+        int $cardNo = 0,
+    ): string|false {
         $this->calls[] = 'setUser';
         $this->users[$userid] = [
             'uid' => $uid,
-            'userid' => $userid,
+            'user_id' => $userid,
             'name' => $name,
             'role' => $role,
             'password' => $password,
-            'cardno' => (string) $cardno,
+            'card_no' => $cardNo,
         ];
 
-        return true;
+        return '';
     }
 
-    public function removeUser(int $uid): bool
+    public function deleteUser(int $uid): string|false
     {
-        $this->calls[] = 'removeUser';
+        $this->calls[] = 'deleteUser';
 
         foreach ($this->users as $identifier => $user) {
             if ($user['uid'] === $uid) {
                 unset($this->users[$identifier]);
 
-                return true;
+                return '';
             }
         }
 
@@ -105,6 +103,6 @@ class FakeZkDevice
 
     public static function punch(int $uid, string $pin, string $timestamp, int $type = 1): array
     {
-        return ['uid' => $uid, 'id' => $pin, 'state' => 1, 'timestamp' => $timestamp, 'type' => $type];
+        return ['uid' => $uid, 'user_id' => $pin, 'state' => 1, 'timestamp' => $timestamp, 'verify_type' => $type];
     }
 }

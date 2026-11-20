@@ -6,7 +6,7 @@ use App\Models\Device;
 use App\Models\Employee;
 use App\Services\ZKTeco\Exceptions\ZktecoConnectionException;
 use Closure;
-use Jmrashed\Zkteco\Lib\ZKTeco;
+use TahaRafi\ZKTeco\ZKTeco;
 use Throwable;
 
 class ZktecoClient
@@ -16,22 +16,41 @@ class ZktecoClient
     private int $skippedRows = 0;
 
     /**
-     * @param  Closure(string,int):object|null  $factory  Builds the vendor object; override in tests
+     * @param  Closure(string,int,int,string,int):object|null  $factory  Builds the vendor object; override in tests
      */
     public function __construct(
         private readonly string $ip,
         private readonly int $port,
         private readonly string $timezone = 'Asia/Jakarta',
         private readonly ?Closure $factory = null,
+        private readonly int $commKey = 0,
+        private readonly string $protocol = 'auto',
+        private readonly int $timeoutSeconds = 5,
     ) {}
 
-    public static function forDevice(Device $device): self
+    public static function forDevice(Device $device, ?Closure $factory = null): self
     {
         return new self(
             ip: $device->ip_address,
             port: $device->port ?? (int) config('zkteco.port'),
             timezone: config('app.timezone'),
+            factory: $factory,
+            commKey: self::commKeyFor($device),
+            protocol: (string) config('zkteco.protocol', 'auto'),
+            timeoutSeconds: (int) config('zkteco.socket_timeout_seconds', 5),
         );
+    }
+
+    private static function commKeyFor(Device $device): int
+    {
+        $value = $device->commkey_encrypted ?? config('zkteco.default_commkey', 0);
+
+        if (! is_scalar($value) || ! preg_match('/\A\d+\z/', (string) $value)
+            || filter_var($value, FILTER_VALIDATE_INT) === false) {
+            throw ZktecoConnectionException::invalidCommKey();
+        }
+
+        return (int) $value;
     }
 
     public static function sdkAvailable(): bool
@@ -46,9 +65,12 @@ class ZktecoClient
         }
 
         try {
-            $this->zk = ($this->factory ?? fn (string $ip, int $port) => new ZKTeco($ip, $port))(
+            $this->zk = ($this->factory ?? fn (string $ip, int $port, int $commKey, string $protocol, int $timeoutSeconds) => new ZKTeco($ip, $port, $commKey, $protocol, $timeoutSeconds))(
                 $this->ip,
                 $this->port,
+                $this->commKey,
+                $this->protocol,
+                $this->timeoutSeconds,
             );
             $connected = $this->zk->connect();
         } catch (Throwable $e) {
@@ -67,7 +89,7 @@ class ZktecoClient
         $this->ensureConnected();
 
         try {
-            $version = $this->zk->version();
+            $version = $this->zk->getVersion();
 
             return is_string($version) && $version !== '' ? $version : null;
         } catch (Throwable) {
@@ -86,51 +108,17 @@ class ZktecoClient
         $this->zk->disableDevice();
 
         try {
-            $rows = $this->zk->getAttendance();
+            $rows = $this->zk->getAttendanceStructured();
         } finally {
             $this->zk->enableDevice();
         }
 
-        if (! is_array($rows) || $rows === []) {
+        if ($rows === false) {
+            throw new \RuntimeException('The device did not return attendance records.');
+        }
+
+        if ($rows === []) {
             return [];
-        }
-
-        if (! method_exists($this->zk, 'getUser')) {
-            throw new \RuntimeException(
-                'SDK ZKTeco tidak menyediakan metode getUser().'
-            );
-        }
-
-        // Map UID terminal ke userid/PIN yang dipakai BioAttend
-        $users = $this->zk->getUser();
-
-        if (! is_array($users)) {
-            throw new \UnexpectedValueException(
-                'SDK tidak mengembalikan daftar pengguna perangkat yang valid.'
-            );
-        }
-
-        $identifiersByUid = [];
-
-        foreach ($users as $user) {
-            if (! is_array($user)) {
-                continue;
-            }
-
-            $uid = filter_var(
-                $user['uid'] ?? null,
-                FILTER_VALIDATE_INT
-            );
-
-            $identifier = trim((string) ($user['userid'] ?? ''));
-
-            if (
-                $uid !== false
-                && $uid > 0
-                && $identifier !== ''
-            ) {
-                $identifiersByUid[(int) $uid] = $identifier;
-            }
         }
 
         $records = [];
@@ -140,7 +128,6 @@ class ZktecoClient
                 $records[] = ZktecoAttendanceRecord::fromLibraryRow(
                     (array) $row,
                     $this->timezone,
-                    $identifiersByUid
                 );
             } catch (Throwable) {
                 $this->skippedRows++;
@@ -210,7 +197,7 @@ class ZktecoClient
             ? (int) $existingUser['uid']
             : $this->nextAvailableUserId($users);
 
-        return (bool) $this->zk->setUser($uid, $identifier, $name, '');
+        return $this->zk->setUser($uid, $identifier, $name, '') !== false;
     }
 
     public function removeEmployee(string $identifier): bool
@@ -223,7 +210,7 @@ class ZktecoClient
             return true;
         }
 
-        return (bool) $this->zk->removeUser((int) $user['uid']);
+        return $this->zk->deleteUser((int) $user['uid']) !== false;
     }
 
     public function disconnect(): void
@@ -250,9 +237,13 @@ class ZktecoClient
     /** @return array<string, array<string, mixed>> */
     private function usersFromDevice(): array
     {
-        $users = $this->zk->getUser();
+        $users = $this->zk->getUsersStructured();
 
-        return is_array($users) ? $users : [];
+        if ($users === false) {
+            throw new \RuntimeException('The device did not return its enrolled users.');
+        }
+
+        return $users;
     }
 
     /**
@@ -262,7 +253,7 @@ class ZktecoClient
     private function findUserByIdentifier(array $users, string $identifier): ?array
     {
         foreach ($users as $user) {
-            if (is_array($user) && (string) ($user['userid'] ?? '') === $identifier) {
+            if (is_array($user) && (string) ($user['user_id'] ?? '') === $identifier) {
                 return $user;
             }
         }

@@ -21,9 +21,10 @@ class DeviceSyncService
     {
         $history = $this->startHistory($device, DeviceSyncHistory::TYPE_HEALTH, DeviceSyncHistory::TRIGGER_MANUAL);
         $startedAt = hrtime(true);
-        $client = $this->pull->makeClient($device);
+        $client = null;
 
         try {
+            $client = $this->pull->makeClient($device);
             $client->connect();
             $firmware = $client->firmwareVersion();
             $latency = $this->elapsedMs($startedAt);
@@ -57,7 +58,7 @@ class DeviceSyncService
 
             return ConnectionResult::failed($e->errorCode, $e->getMessage(), $latency);
         } finally {
-            $client->disconnect();
+            $client?->disconnect();
         }
     }
 

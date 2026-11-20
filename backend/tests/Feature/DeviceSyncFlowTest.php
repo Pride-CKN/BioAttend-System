@@ -110,9 +110,9 @@ class DeviceSyncFlowTest extends TestCase
             FakeZkDevice::punch(3, '103', '2026-11-06 08:10:00'),
         ];
         $fake->users = [
-            '101' => ['uid' => 1, 'userid' => '101', 'name' => 'One', 'role' => 0, 'password' => '', 'cardno' => '0'],
-            '102' => ['uid' => 2, 'userid' => '102', 'name' => 'Two', 'role' => 0, 'password' => '', 'cardno' => '0'],
-            '103' => ['uid' => 3, 'userid' => '103', 'name' => 'Three', 'role' => 0, 'password' => '', 'cardno' => '0'],
+            '101' => ['uid' => 1, 'user_id' => '101', 'name' => 'One', 'role' => 0, 'password' => '', 'card_no' => 0],
+            '102' => ['uid' => 2, 'user_id' => '102', 'name' => 'Two', 'role' => 0, 'password' => '', 'card_no' => 0],
+            '103' => ['uid' => 3, 'user_id' => '103', 'name' => 'Three', 'role' => 0, 'password' => '', 'card_no' => 0],
         ];
         $processor = $this->mock(AttendanceProcessor::class);
         $attempt = 0;
@@ -170,7 +170,7 @@ class DeviceSyncFlowTest extends TestCase
         $fake = $this->useFakeZk();
         $fake->attendanceRows = [FakeZkDevice::punch(1, '999', '2026-11-06 08:00:00')];
         $fake->users = [
-            '999' => ['uid' => 1, 'userid' => '999', 'name' => 'Unknown', 'role' => 0, 'password' => '', 'cardno' => '0'],
+            '999' => ['uid' => 1, 'user_id' => '999', 'name' => 'Unknown', 'role' => 0, 'password' => '', 'card_no' => 0],
         ];
         $device = $this->makeDevice();
 
@@ -204,9 +204,9 @@ class DeviceSyncFlowTest extends TestCase
     {
         $fake = $this->useFakeZk(new class extends FakeZkDevice
         {
-            public function getAttendance(): array
+            public function getAttendanceStructured(): array
             {
-                $this->calls[] = 'getAttendance';
+                $this->calls[] = 'getAttendanceStructured';
                 throw new \RuntimeException('socket dropped');
             }
         });

@@ -10,7 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
-use Jmrashed\Zkteco\Lib\ZKTeco;
+use TahaRafi\ZKTeco\ZKTeco;
 use Tests\Support\InteractsWithFakeDevice;
 use Tests\TestCase;
 
@@ -107,7 +107,7 @@ class DeviceSyncControllerTest extends TestCase
     public function test_connection_reports_blocked_when_sdk_is_not_installed(): void
     {
         if (class_exists(ZKTeco::class)) {
-            $this->markTestSkipped('jmrashed/zkteco is installed in this environment.');
+            $this->markTestSkipped('taha-rafi/php-zkteco is installed in this environment.');
         }
 
         $device = $this->makeDevice();
