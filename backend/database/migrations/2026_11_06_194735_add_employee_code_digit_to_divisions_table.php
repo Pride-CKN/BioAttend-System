@@ -13,17 +13,18 @@ return new class extends Migration
             $table->unsignedSmallInteger('employee_code_digit')->nullable();
         });
 
-        // Isi digit berdasarkan kode divisi 
+        // Isi digit berdasarkan kode divisi
         DB::statement(<<<'SQL'
             UPDATE divisions
             SET employee_code_digit = CASE code
-                WHEN 'IND' THEN 1
-                WHEN 'KOM' THEN 2
-                WHEN 'PNG' THEN 3
-                WHEN 'KEU' THEN 4
-                WHEN 'TKG' THEN 5
-                WHEN 'SDM' THEN 6
-                WHEN 'OPR' THEN 7
+                WHEN 'DIR' THEN 0
+                WHEN 'SDM' THEN 1
+                WHEN 'TKG' THEN 2
+                WHEN 'KEU' THEN 3
+                WHEN 'PNG' THEN 4
+                WHEN 'IND' THEN 5
+                WHEN 'OPR' THEN 6
+                WHEN 'KOM' THEN 7
                 ELSE NULL
             END
         SQL);
@@ -40,7 +41,7 @@ return new class extends Migration
             ADD CONSTRAINT divisions_employee_code_digit_chk
             CHECK (
                 employee_code_digit IS NULL
-                OR employee_code_digit BETWEEN 1 AND 9
+                OR employee_code_digit BETWEEN 0 AND 9
             )
         SQL);
     }

@@ -23,6 +23,7 @@ class EmployeeCodeGeneratorService
         ?string $reason = null,
         ?int $createdBy = null,
         ?string $effectiveFrom = null,
+        bool $autoGenerateEmployeeCode = true,
     ): Employee {
         return DB::transaction(function () use (
             $employee,
@@ -31,7 +32,8 @@ class EmployeeCodeGeneratorService
             $unitId,
             $reason,
             $createdBy,
-            $effectiveFrom
+            $effectiveFrom,
+            $autoGenerateEmployeeCode
         ): Employee {
             // Kunci employee
             $employee = Employee::query()
@@ -75,12 +77,12 @@ class EmployeeCodeGeneratorService
                 ]);
             }
 
-                        $rawDivisionDigit = $division->getRawOriginal('employee_code_digit');
+            $rawDivisionDigit = $division->getRawOriginal('employee_code_digit');
             $divisionDigit = filter_var($rawDivisionDigit, FILTER_VALIDATE_INT);
 
             if (
                 $divisionDigit === false
-                || $divisionDigit < 1
+                || $divisionDigit < 0
                 || $divisionDigit > 9
             ) {
                 throw ValidationException::withMessages([
@@ -119,7 +121,10 @@ class EmployeeCodeGeneratorService
 
                 $unitDigit = (string) $validatedUnitDigit;
             } else {
-                $hasUnits = Unit::query()
+                // Kepala tidak memiliki unit
+                $isHead = $employee->position?->code === 'KDV';
+
+                $hasUnits = ! $isHead && Unit::query()
                     ->where('division_id', $division->id)
                     ->exists();
 
@@ -128,6 +133,37 @@ class EmployeeCodeGeneratorService
                         'unit_id' => 'Divisi ini memiliki unit. Silakan pilih unit karyawan.',
                     ]);
                 }
+            }
+
+            if (! $autoGenerateEmployeeCode) {
+                $codeAlreadyUsed = Employee::query()
+                    ->where('employee_code', $employee->nip)
+                    ->whereKeyNot($employee->id)
+                    ->exists()
+                    || EmployeeCodeHistory::query()
+                        ->where('employee_code', $employee->nip)
+                        ->exists();
+
+                if ($codeAlreadyUsed) {
+                    throw ValidationException::withMessages([
+                        'nip' => 'NIP sudah pernah digunakan sebagai Employee ID.',
+                    ]);
+                }
+
+                $employee->forceFill([
+                    'office_id' => $office->id,
+                    'division_id' => $division->id,
+                    'unit_id' => $unit?->id,
+                    'employee_code' => $employee->nip,
+                    'nip' => $employee->nip,
+                ])->save();
+
+                return $employee->fresh([
+                    'office',
+                    'division',
+                    'unit',
+                    'employeeCodeHistories',
+                ]);
             }
 
             // Validasi tanggal efektif
@@ -195,21 +231,27 @@ class EmployeeCodeGeneratorService
 
             // Bentuk prefix Employee ID
             $prefix = (string) $office->code
-    . (string) $divisionDigit
-    . $unitDigit;
+    .(string) $divisionDigit
+    .$unitDigit;
 
             // Ambil kode yang pernah atau sedang digunakan
             // Kode historis tidak boleh digunakan kembali
             $historyCodes = EmployeeCodeHistory::query()
-                ->where('employee_code', 'like', $prefix . '%')
+                ->where('employee_code', 'like', $prefix.'%')
                 ->pluck('employee_code');
 
-            $currentCodes = Employee::query()
-                ->where('employee_code', 'like', $prefix . '%')
-                ->pluck('employee_code');
+            $currentIdentifiers = Employee::query()
+                ->where(function ($query) use ($prefix): void {
+                    $query->where('employee_code', 'like', $prefix.'%')
+                        ->orWhere('nip', 'like', $prefix.'%')
+                        ->orWhere('device_user_identifier', 'like', $prefix.'%');
+                })
+                ->get(['employee_code', 'nip', 'device_user_identifier']);
 
             $usedCodes = $historyCodes
-                ->merge($currentCodes)
+                ->merge($currentIdentifiers->pluck('employee_code'))
+                ->merge($currentIdentifiers->pluck('nip'))
+                ->merge($currentIdentifiers->pluck('device_user_identifier'))
                 ->unique();
 
             $maxSequence = 0;
@@ -232,7 +274,7 @@ class EmployeeCodeGeneratorService
                 ]);
             }
 
-            $newCode = $prefix . str_pad(
+            $newCode = $prefix.str_pad(
                 (string) $nextSequence,
                 3,
                 '0',
@@ -254,6 +296,7 @@ class EmployeeCodeGeneratorService
                 'division_id' => $division->id,
                 'unit_id' => $unit?->id,
                 'employee_code' => $newCode,
+                'nip' => $newCode,
             ])->save();
 
             // Simpan histori Employee ID baru

@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Models\Employee;
-use App\Models\Unit;
 use App\Models\Division;
+use App\Models\Employee;
 use App\Models\Position;
+use App\Models\Unit;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,9 +22,12 @@ class EmployeeFactory extends Factory
 
     public function definition(): array
     {
+        // Test-only fallback; production NIPs are assigned by HR using the six-digit scheme.
+        $nip = $this->faker->unique()->numerify('######');
+
         return [
-            'nip' => 'NIP-' . $this->faker->unique()->numerify('#####'),
-            'device_user_identifier' => 'DEV-' . $this->faker->unique()->numerify('###'),
+            'nip' => $nip,
+            'device_user_identifier' => $nip,
             'full_name' => $this->faker->name(),
             'email' => $this->faker->unique()->safeEmail(),
             'phone' => $this->faker->phoneNumber(),

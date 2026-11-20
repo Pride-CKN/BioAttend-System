@@ -42,24 +42,25 @@ class User extends Authenticatable
     /* Relasi akun dengan satu role melalui tabel role_user */
     public function roles(): BelongsToMany
     {
-    return $this->belongsToMany(Role::class, 'role_user')
-        ->withTimestamps();
+        return $this->belongsToMany(Role::class, 'role_user')
+            ->withTimestamps();
     }
 
     /* Satu akun hanya boleh memiliki satu role
       Pembatas utamanya ditegakkan oleh UNIQUE(role_user.user_id)
-      di PostgreSQL */
+      di PostgreSQL
+     */
+    /*
+    Mengambil nama satu-satunya role yang dimiliki akun.
+    */
+    public function primaryRole(): ?string
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->first()?->name;
+        }
 
-
-/*  Mengambil nama satu-satunya role yang dimiliki akun */
-public function primaryRole(): ?string
-{
-    if ($this->relationLoaded('roles')) {
-        return $this->roles->first()?->name;
+        return $this->roles()->value('roles.name');
     }
-
-    return $this->roles()->value('roles.name');
-}
 
     /* Memeriksa apakah akun memiliki salah satu role yang diminta */
     public function hasRole(string ...$roles): bool

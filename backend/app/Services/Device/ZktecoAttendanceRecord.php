@@ -13,12 +13,10 @@ final readonly class ZktecoAttendanceRecord
         public array $raw,
     ) {}
 
-    /* Format baris SDK: uid, id, state, timestamp, type
-      UID dipetakan ke userid melalui getUser() */
+    /* Format baris SDK terstruktur: uid, user_id, state, timestamp, verify_type. */
     public static function fromLibraryRow(
         array $row,
         string $timezone,
-        array $identifiersByUid
     ): self {
         $uid = filter_var(
             $row['uid'] ?? null,
@@ -39,7 +37,7 @@ final readonly class ZktecoAttendanceRecord
             );
         }
 
-        $identifier = $identifiersByUid[(int) $uid] ?? null;
+        $identifier = $row['user_id'] ?? null;
 
         if ($identifier !== null) {
             $identifier = trim((string) $identifier);

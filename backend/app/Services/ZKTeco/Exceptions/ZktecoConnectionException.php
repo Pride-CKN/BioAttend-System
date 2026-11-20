@@ -8,9 +8,14 @@ use Throwable;
 class ZktecoConnectionException extends RuntimeException
 {
     public const SDK_UNAVAILABLE = 'SDK_UNAVAILABLE';
+
     public const CONNECTION_FAILED = 'CONNECTION_FAILED';
+
     public const NOT_CONNECTED = 'NOT_CONNECTED';
+
     public const TIMEOUT = 'TIMEOUT';
+
+    public const INVALID_COMMKEY = 'INVALID_COMMKEY';
 
     public function __construct(
         string $message,
@@ -23,7 +28,7 @@ class ZktecoConnectionException extends RuntimeException
     public static function sdkUnavailable(): self
     {
         return new self(
-            'ZKTeco vendor SDK (jmrashed/zkteco) is not installed.',
+            'ZKTeco vendor SDK (taha-rafi/php-zkteco) is not installed.',
             self::SDK_UNAVAILABLE,
         );
     }
@@ -41,5 +46,10 @@ class ZktecoConnectionException extends RuntimeException
     public static function notConnected(): self
     {
         return new self('ZKTeco client is not connected.', self::NOT_CONNECTED);
+    }
+
+    public static function invalidCommKey(): self
+    {
+        return new self('Device CommKey must be a non-negative integer.', self::INVALID_COMMKEY);
     }
 }

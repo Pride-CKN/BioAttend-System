@@ -18,19 +18,26 @@ return [
     // Real per-device commkeys live encrypted in devices.commkey_encrypted.
     'default_commkey' => env('ZKTECO_COMMKEY', 0),
 
+    'protocol' => env('ZKTECO_PROTOCOL', 'auto'),
+
     /*
     |--------------------------------------------------------------------------
     | Pull behaviour
     |--------------------------------------------------------------------------
     */
-    'pull_interval_minutes' => (int) env('ZKTECO_PULL_INTERVAL', 15),
 
     'timeout_seconds' => (int) env('ZKTECO_TIMEOUT', 30),
+
+    'socket_timeout_seconds' => (int) env('ZKTECO_SOCKET_TIMEOUT', 5),
 
     'retries' => (int) env('ZKTECO_RETRIES', 3),
 
     // Queue used by DeviceSyncJob (the controller reads this too).
     'queue' => env('ZKTECO_QUEUE', 'device-sync'),
+
+    // Queue used by employee provisioning jobs. Kept separate from attendance
+    // pulls so a slow device-user update cannot delay log ingestion.
+    'employee_push_queue' => env('ZKTECO_EMPLOYEE_PUSH_QUEUE', 'device-push'),
 
     // Seconds to wait between retries (attempt 1, 2, 3).
     'backoff_seconds' => [10, 30, 60],

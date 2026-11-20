@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /* Status push karyawan per perangkat (idempotent) */
 class DeviceEmployeePush extends Model
 {
+    public const OPERATION_UPSERT = 'UPSERT';
+    public const OPERATION_DISABLE = 'DISABLE';
+
     public const STATUS_PENDING = 'PENDING';
     public const STATUS_SUCCESS = 'SUCCESS';
     public const STATUS_FAILED = 'FAILED';

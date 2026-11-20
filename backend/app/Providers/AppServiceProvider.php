@@ -31,15 +31,15 @@ class AppServiceProvider extends ServiceProvider
                     );
                 }
 
-                return new MockDeviceAdapter();
+                return new MockDeviceAdapter;
             }
 
-            return new ZKTecoSdkAdapter();
+            return new ZKTecoSdkAdapter;
         });
 
         // CAPTCHA: default NOT_CONFIGURED (BLOCKED)
         // didaftarkan di sini setelah provider & secret tersedia
-        $this->app->bind(CaptchaVerifier::class, fn () => new NullCaptchaVerifier());
+        $this->app->bind(CaptchaVerifier::class, fn () => new NullCaptchaVerifier);
     }
 
     public function boot(): void
@@ -55,5 +55,8 @@ class AppServiceProvider extends ServiceProvider
         // Pembatasan umum 60 permintaan / menit untuk seluruh API terautentikasi
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)
             ->by($request->user()?->id ?: $request->ip()));
+
+        RateLimiter::for('adms', fn (Request $request) => Limit::perMinute(240)
+            ->by((string) $request->query('SN', 'unknown').'|'.$request->ip()));
     }
 }

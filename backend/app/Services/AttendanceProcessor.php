@@ -72,11 +72,15 @@ class AttendanceProcessor
         ];
 
         try {
-            $log = AttendanceLog::create($attributes);
+            $log = DB::transaction(fn () => AttendanceLog::create($attributes));
             $created = true;
         } catch (QueryException $e) {
             // Unique constraint (fingerprint / device_log_id) = kiriman ulang
             // Ambil baris yang sudah ada; JANGAN mengubah bukti aslinya
+            if ($e->getCode() !== '23505') {
+                throw $e;
+            }
+            
             $log = AttendanceLog::query()
                 ->where('fingerprint', $fingerprint)
                 ->first();

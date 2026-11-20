@@ -27,6 +27,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Arr;
 
 /* Modul pendukung: dashboard, notifikasi, pengguna & role, pengaturan,
   laporan, audit log, komponen PPh, dan perangkat */
@@ -44,6 +45,55 @@ class SystemController extends Controller
         $today = now()->toDateString();
         $period = now()->format('Y-m');
 
+        $request->validate([
+            'division_id' => 'nullable|integer|exists:employees,id',
+            'position_id' => 'nullable|integer|exists:employees,id',
+            'sort_by' => ['nullable', 'in:nip,name,position,check_in,check_out,work_duration_minutes,status'],
+            'sort_dir' => ['nullable', 'in:asc,desc'],
+        ]);
+
+        $base = fn () => Employee::query()
+        ->where('employees.employment_status', Employee::STATUS_ACTIVE)
+        ->leftJoin('divisions as d', 'd.id', '=', 'employees.division_id')
+        ->leftJoin('positions as p', 'p.id', '=', 'employees.position_id')
+        ->leftJoin('attendance_records as ar', function ($join) use ($today) {
+            $join->on('ar.employee_id', '=', 'employees.id')
+                 ->where('ar.work_date', $today);
+        })
+        ->select([
+            'employees.id as employee_id',
+            'employees.nip',
+            'employees.full_name',
+            'employees.position_id',
+            'd.name as division',
+            'p.name as position',
+            'ar.check_in_at as check_in',
+            'ar.check_out_at as check_out',
+            'ar.work_duration_minutes',
+            'ar.status',
+            'ar.is_incomplete',
+        ]);
+
+        $sortMap = [
+            'nip' => 'employees.nip',
+            'name' => 'employees.full_name',
+            'division' => 'd.name',
+            'position' => 'p.name',
+            'check_in' => 'ar.check_in_at',
+            'check_out' => 'ar.check_out_at',
+            'work_duration_minutes' => 'ar.work_duration_minutes',
+            'status' => 'ar.status',
+        ];
+        $sortCol = $sortMap[$request->input('sort_by', 'position')];
+        $sortDir = $request->input('sort_dir', 'asc');
+
+        $rows = $base()
+            ->when($request->filled('position_id'), fn ($q) =>
+                $q->whereIn('employees.position_id', Arr::wrap($request->input('position_id'))))
+            ->orderBy($sortCol, $sortDir)
+            ->orderBy('employees.full_name')
+            ->get();
+
         return $this->success([
             'date' => $today,
             'employees' => [
@@ -57,6 +107,18 @@ class SystemController extends Controller
                 'absent' => AttendanceRecord::where('work_date', $today)->where('status', AttendanceRecord::STATUS_ABSENT)->count(),
                 'leave' => AttendanceRecord::where('work_date', $today)->where('status', AttendanceRecord::STATUS_LEAVE)->count(),
                 'incomplete' => AttendanceRecord::where('work_date', $today)->where('is_incomplete', true)->count(),
+                'not_scanned' => $rows->whereNull('status')->count(),
+                'rows' => $rows->map(fn ($r) => [
+                    'employee_id' => $r->employee_id,
+                    'nip' => $r->nip,
+                    'full_name' => $r->full_name,
+                    'division' => $r->division,
+                    'position' => $r->position,
+                    'check_in' => $r->check_in,
+                    'check_out' => $r->check_out,
+                    'work_duration_minutes' => $r->work_duration_minutes,
+                    'status' => $r->status,
+                ])->values(),
             ],
             'pending_approvals' => [
                 'leave' => LeaveRequest::where('status', LeaveRequest::STATUS_PENDING_KADIV)->count()

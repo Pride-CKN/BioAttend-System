@@ -3,7 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\DeviceEmployeePush;
+use App\Models\IntegrationLog;
 use App\Services\ZKTeco\Contracts\DeviceAdapter;
+use App\Services\ZKTeco\Exceptions\ZktecoConnectionException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,20 +14,24 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Throwable;
 
-/* Kirim SATU karyawan ke SATU perangkat. Idempoten berdasar payload_hash */
-class PushEmployeeToDeviceJob implements ShouldQueue, ShouldBeUnique
+/** Kirim SATU karyawan ke SATU perangkat. Idempoten berdasar payload_hash. */
+class PushEmployeeToDeviceJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries;
 
-    public array $backoff = [30, 120, 300];
+    public array $backoff;
 
     public int $timeout = 60;
 
     public int $uniqueFor = 900;
 
-    public function __construct(public int $pushId) {}
+    public function __construct(public int $pushId)
+    {
+        $this->tries = max(1, (int) config('zkteco.retries', 3));
+        $this->backoff = (array) config('zkteco.backoff_seconds', [10, 30, 60]);
+    }
 
     public function uniqueId(): string
     {
@@ -46,17 +52,16 @@ class PushEmployeeToDeviceJob implements ShouldQueue, ShouldBeUnique
 
         $device = $push->device;
 
-        $connected = false;
+        $startedAt = hrtime(true);
         try {
             $adapter->connect($device);
-            $connected = true;
             $ok = match (strtoupper((string) $push->operation)) {
-                'UPSERT' => $adapter->pushEmployee(
+                DeviceEmployeePush::OPERATION_UPSERT => $adapter->pushEmployee(
                     $device,
                     $push->employee,
                     (string) $push->device_user_identifier
                 ),
-                'DISABLE' => $adapter->disableEmployee(
+                DeviceEmployeePush::OPERATION_DISABLE => $adapter->disableEmployee(
                     $device,
                     $push->employee,
                     (string) $push->device_user_identifier
@@ -64,28 +69,24 @@ class PushEmployeeToDeviceJob implements ShouldQueue, ShouldBeUnique
                 default => throw new \InvalidArgumentException('Operasi push karyawan tidak dikenal.'),
             };
 
-            $push->update([
-                'status' => $ok ? DeviceEmployeePush::STATUS_SUCCESS : DeviceEmployeePush::STATUS_FAILED,
-                'pushed_at' => $ok ? now() : null,
-                'error_summary' => $ok ? null : 'Perangkat menolak data karyawan.',
-            ]);
-
             if (! $ok) {
                 throw new \RuntimeException('Perangkat menolak data karyawan.');
             }
-        } catch (\App\Services\ZKTeco\Exceptions\ZktecoConnectionException $e) {
+
             $push->update([
-                'status' => DeviceEmployeePush::STATUS_FAILED,
-                'error_summary' => $e->getMessage(),
+                'status' => DeviceEmployeePush::STATUS_SUCCESS,
+                'pushed_at' => now(),
+                'error_summary' => null,
             ]);
 
-            if ($e->errorCode === \App\Services\ZKTeco\Exceptions\ZktecoConnectionException::SDK_UNAVAILABLE) {
-                $this->fail($e);
-                return;
-            }
-
-            throw $e;        } catch (Throwable $e) {
+            $this->recordIntegrationLog($push, IntegrationLog::STATUS_SUCCESS, $startedAt);
+        } catch (ZktecoConnectionException $e) {
             $push->update(['status' => DeviceEmployeePush::STATUS_FAILED, 'error_summary' => $e->getMessage()]);
+            $this->recordIntegrationLog($push, IntegrationLog::STATUS_FAILED, $startedAt, $e->getMessage());
+            throw $e;
+        } catch (Throwable $e) {
+            $push->update(['status' => DeviceEmployeePush::STATUS_FAILED, 'error_summary' => $e->getMessage()]);
+            $this->recordIntegrationLog($push, IntegrationLog::STATUS_FAILED, $startedAt, $e->getMessage());
             throw $e;
         } finally {
             // Selalu lepaskan koneksi, termasuk ketika operasi push melempar
@@ -95,5 +96,23 @@ class PushEmployeeToDeviceJob implements ShouldQueue, ShouldBeUnique
                 report($disconnectError);
             }
         }
+    }
+
+    private function recordIntegrationLog(
+        DeviceEmployeePush $push,
+        string $status,
+        int $startedAt,
+        ?string $error = null,
+    ): void {
+        IntegrationLog::create([
+            'service' => IntegrationLog::SERVICE_DEVICE,
+            'operation' => 'PUSH_EMPLOYEE',
+            'device_id' => $push->device_id,
+            'status' => $status,
+            'request_summary' => "employee_id: {$push->employee_id}; operation: {$push->operation}",
+            'response_summary' => $status === IntegrationLog::STATUS_SUCCESS ? 'Employee device record updated.' : null,
+            'error_message' => $error !== null ? str($error)->limit(1000) : null,
+            'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
+        ]);
     }
 }
