@@ -12,7 +12,7 @@ import { menuGroups } from "@/config/navigation";
 // Standalone pages not necessarily in the main sidebar menu
 const EmployeeForm = lazy(() => import("@/features/employee/employeeForm"));
 const EmployeeDetail = lazy(() => import("@/features/employee/employeeDetail"));
-const DivisionForm = lazy(() => import("@/features/department/departmentForm"));
+const DivisionForm = lazy(() => import("@/features/division/divisionForm"));
 
 function GuestOnly({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => Boolean(s.token) && !s.isExpired())

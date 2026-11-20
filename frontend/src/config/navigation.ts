@@ -9,7 +9,8 @@ import {
   ClipboardCheck, 
   CalendarCheck, 
   Settings, 
-  type LucideIcon 
+  type LucideIcon, 
+  BriefcaseBusiness
 } from "lucide-react";
 
 export type MenuItem = {
@@ -52,7 +53,13 @@ export const menuGroups: MenuGroup[] = [
         name: "Divisi & Unit",
         href: "/division",
         icon: Folder, 
-        component: lazy(() => import("@/features/department/departmentList")) 
+        component: lazy(() => import("@/features/division/divisionList")) 
+      },
+      { 
+        name: "Jabatan", 
+        href: "/position", 
+        icon: BriefcaseBusiness, 
+        component: lazy(() => import("@/features/position/pages/position-page").then(m => ({ default: m.PositionPage }))) 
       },
     ],
   },
